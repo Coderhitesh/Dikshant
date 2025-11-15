@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1017659561006",
+    "project_id": "dikhshant-e3b6b",
+    "storage_bucket": "dikhshant-e3b6b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1017659561006:android:00d8d2e0ca66feda38fbbf",
+        "android_client_info": {
+          "package_name": "in.kaksya.dikshant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAK4Y2OZmGfxQkaTKcrxWjIu4lmU9apqw0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

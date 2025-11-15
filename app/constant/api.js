@@ -1,0 +1,1 @@
+export const API_URL_ENDPOINT="https://www.dikshantias.com/api/admin"

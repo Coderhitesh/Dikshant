@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Dikshant IAS",
+    "slug": "dikshant-ias",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,17 +13,162 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "in.kaksya.dikshant",
+      "icon": "./assets/icon.png",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "location",
+          "fetch"
+        ],
+        "UIUserNotificationAlertStyle": "alert"
+      },
+      "entitlements": {
+        "aps-environment": "development"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "in.kaksya.dikshant",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "WAKE_LOCK",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "VIBRATE",
+        "USE_FULL_SCREEN_INTENT",
+        "SYSTEM_ALERT_WINDOW",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "WAKE_LOCK",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "VIBRATE",
+        "USE_FULL_SCREEN_INTENT",
+        "SYSTEM_ALERT_WINDOW"
+      ],
+      "edgeToEdgeEnabled": true,
+      "notification": {
+        "icon": "./assets/images/logo.png",
+        "color": "#FB2B37",
+        "priority": "max",
+        "channels": [
+          {
+            "id": "dikshant-general",
+            "name": "General Notifications",
+            "description": "General updates from Dikshant IAS LMS",
+            "importance": "max",
+            "sound": "default"
+          },
+          {
+            "id": "dikshant-important",
+            "name": "Important Alerts",
+            "description": "Exam updates and critical alerts",
+            "importance": "max",
+            "sound": "default",
+            "vibrationPattern": [
+              300,
+              200,
+              300
+            ]
+          },
+          {
+            "id": "dikshant-live-class",
+            "name": "Live Class Alerts",
+            "description": "Live class start reminders",
+            "importance": "high",
+            "sound": "default"
+          },
+          {
+            "id": "dikshant-general",
+            "name": "General Notifications",
+            "description": "General updates from Dikshant IAS LMS",
+            "importance": "max",
+            "sound": "default"
+          },
+          {
+            "id": "dikshant-important",
+            "name": "Important Alerts",
+            "description": "Exam updates and critical alerts",
+            "importance": "max",
+            "sound": "default",
+            "vibrationPattern": [
+              300,
+              200,
+              300
+            ]
+          },
+          {
+            "id": "dikshant-live-class",
+            "name": "Live Class Alerts",
+            "description": "Live class start reminders",
+            "importance": "high",
+            "sound": "default"
+          }
+        ]
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#FB2B37"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "podfileProperties": {
+              "use_modular_headers!": "true"
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "80119a4c-6967-4b26-a80b-9baf88c6a854"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/80119a4c-6967-4b26-a80b-9baf88c6a854"
     }
   }
 }
