@@ -85,7 +85,7 @@ export default function Login({ navigation }) {
       setPhoneError("");
 
       // Call OTP API
-      const res = await sendOtp(phone);
+      const res = await login(phone);
       if (res.message) {
         setStep(2);
 
@@ -100,7 +100,7 @@ export default function Login({ navigation }) {
   };
 
   const handleLogin = async () => {
-    const res = await login(otp);
+    const res = await login(phone,otp);
     if (!res.success) {
       setOtpError(res.message);
       return;

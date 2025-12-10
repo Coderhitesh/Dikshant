@@ -9,14 +9,18 @@ import Greet from '../../components/Greet'
 import Slider from '../../components/slider'
 import Categories from '../../components/Categories'
 import Course from '../../screens/courses/Courses'
+import Scholarship from '../../components/Scholarship'
+import Announcement from '../../components/Announcement'
 export default function Home() {
   const navigation = useNavigation()
   return (
     <Layout>
       <Greet />
       <Slider />
-
+      <Announcement/>
       <Categories />
+      <Scholarship/>
+
       <Course/>
     </Layout>
 

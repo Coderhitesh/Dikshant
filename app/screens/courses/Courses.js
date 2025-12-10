@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -17,12 +17,19 @@ import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 const CARD_MARGIN = 12;
-const LATEST_CARD_WIDTH = width * 0.88;
-const RECORDED_CARD_WIDTH = width * 0.42;
-const QUIZ_CARD_WIDTH = RECORDED_CARD_WIDTH;
+const RECORDED_CARD_WIDTH = width * 0.72;
 
 // === Horizontal Section Component ===
-const HorizontalSection = ({ title, data, renderItem, keyExtractor, cardWidth, isLoading, error }) => {
+const HorizontalSection = ({ 
+  title, 
+  data, 
+  renderItem, 
+  keyExtractor, 
+  cardWidth, 
+  isLoading, 
+  error,
+  onSeeAll 
+}) => {
   if (isLoading) {
     return (
       <View style={styles.sectionContainer}>
@@ -57,6 +64,7 @@ const HorizontalSection = ({ title, data, renderItem, keyExtractor, cardWidth, i
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <View style={styles.emptyContainer}>
+          <Feather name="inbox" size={32} color="#cbd5e1" />
           <Text style={styles.emptyText}>No courses available</Text>
         </View>
       </View>
@@ -67,9 +75,16 @@ const HorizontalSection = ({ title, data, renderItem, keyExtractor, cardWidth, i
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity>
-          {/* <Text style={styles.seeAll}>See all</Text> */}
-        </TouchableOpacity>
+        {onSeeAll && (
+          <TouchableOpacity 
+            style={styles.seeAllButton}
+            onPress={onSeeAll}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.seeAllText}>See all</Text>
+            <Feather name="chevron-right" size={16} color="#3b82f6" />
+          </TouchableOpacity>
+        )}
       </View>
       <FlatList
         data={data}
@@ -86,159 +101,83 @@ const HorizontalSection = ({ title, data, renderItem, keyExtractor, cardWidth, i
   );
 };
 
-// === Latest Course Card ===
-const LatestCourseCard = ({ item: course, navigation }) => {
+// === Course Card Component ===
+const CourseCard = ({ item: course, navigation }) => {
   const imageUrl = course.image?.url || course.image;
-  const discount = course.originalPrice
-    ? Math.round(((course.originalPrice - course.price) / course.originalPrice) * 100)
-    : 0;
+
+  const handlePress = () => {
+    navigation?.navigate?.("CourseDetail", { 
+      courseId: course._id || course.id 
+    });
+  };
 
   return (
     <TouchableOpacity
-      style={[styles.latestCard, { width: LATEST_CARD_WIDTH }]}
-      activeOpacity={0.95}
-      onPress={() => navigation?.navigate?.("CourseDetail", { courseId: course._id || course.id })}
+      style={[styles.courseCard, { width: RECORDED_CARD_WIDTH }]}
+      activeOpacity={0.9}
+      onPress={handlePress}
     >
-      <View style={styles.latestImageContainer}>
+      {/* Image Section */}
+      <View style={styles.imageContainer}>
         <Image
           source={{ uri: imageUrl }}
-          style={styles.latestImage}
+          style={styles.courseImage}
           resizeMode="cover"
         />
-        {course.badge && (
-          <View style={styles.categoryTag}>
-            <Text style={styles.categoryTagText}>{course.badge}</Text>
+        <View style={styles.imageOverlay}>
+          <View style={styles.playButton}>
+            <Feather name="play" size={20} color="#ffffff" />
           </View>
-        )}
-        {discount > 0 && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{discount}% OFF</Text>
+        </View>
+        
+        {/* Badge */}
+        {course.badge && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{course.badge}</Text>
           </View>
         )}
       </View>
 
-      <View style={styles.latestContent}>
-        <Text style={styles.latestTitle} numberOfLines={2}>
+      {/* Content Section */}
+      <View style={styles.cardContent}>
+        <Text style={styles.courseTitle} numberOfLines={2}>
           {course.title}
         </Text>
-        {course.shortContent && (
-          <Text style={styles.latestInstructor} numberOfLines={1}>
-            {course.shortContent}
-          </Text>
-        )}
 
-        <View style={styles.latestMetrics}>
+        {/* Meta Information */}
+        <View style={styles.metaContainer}>
           {course.lectures && (
-            <View style={styles.metric}>
-              <Feather name="book-open" size={11} color="#64748b" />
-              <Text style={styles.metricText}>{course.lectures} lectures</Text>
+            <View style={styles.metaItem}>
+              <Feather name="video" size={12} color="#64748b" />
+              <Text style={styles.metaText}>{course.lectures} lectures</Text>
             </View>
           )}
           {course.duration && (
-            <>
-              {course.lectures && <View style={styles.metricDivider} />}
-              <View style={styles.metric}>
-                <Feather name="clock" size={11} color="#64748b" />
-                <Text style={styles.metricText}>{course.duration}</Text>
-              </View>
-            </>
-          )}
-          {course.languages && (
-            <>
-              <View style={styles.metricDivider} />
-              <View style={styles.metric}>
-                <Feather name="globe" size={11} color="#64748b" />
-                <Text style={styles.metricText}>{course.languages}</Text>
-              </View>
-            </>
+            <View style={styles.metaItem}>
+              <Feather name="clock" size={12} color="#64748b" />
+              <Text style={styles.metaText}>{course.duration}</Text>
+            </View>
           )}
         </View>
 
-        <View style={styles.latestFeatures}>
+        {/* Footer */}
+        <View style={styles.cardFooter}>
           {course.courseMode && (
-            <View style={styles.feature}>
-              <Feather name="monitor" size={10} color="#64748b" />
-              <Text style={styles.featureText}>{course.courseMode}</Text>
-            </View>
-          )}
-          {course.active && (
-            <View style={styles.feature}>
-              <Feather name="check-circle" size={10} color="#10b981" />
-              <Text style={styles.featureText}>Active</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.latestFooter}>
-          <View>
-            <Text style={styles.latestPrice}>₹{course.price?.toLocaleString()}</Text>
-            {course.originalPrice && course.originalPrice > course.price && (
-              <Text style={styles.latestOriginalPrice}>
-                ₹{course.originalPrice.toLocaleString()}
+            <View style={[
+              styles.modeTag,
+              course.courseMode === "online" && styles.modeTagOnline,
+              course.courseMode === "offline" && styles.modeTagOffline,
+            ]}>
+              <Text style={[
+                styles.modeTagText,
+                course.courseMode === "online" && styles.modeTagTextOnline,
+                course.courseMode === "offline" && styles.modeTagTextOffline,
+              ]}>
+                {course.courseMode.toUpperCase()}
               </Text>
-            )}
-          </View>
-          <View style={styles.enrollButton}>
-            <Text style={styles.enrollButtonText}>Enroll</Text>
-            <Feather name="arrow-right" size={12} color="#fff" />
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-// === Recorded Course Card ===
-const RecordedCourseCard = ({ item: course, navigation }) => {
-  const imageUrl = course.image?.url || course.image;
-
-  return (
-    <TouchableOpacity
-      style={[styles.recordedCard, { width: RECORDED_CARD_WIDTH }]}
-      activeOpacity={0.95}
-      onPress={() => navigation?.navigate?.("CourseDetail", { courseId: course._id || course.id })}
-    >
-      <View style={styles.recordedImageContainer}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.recordedImage}
-          resizeMode="cover"
-        />
-        <View style={styles.recordedOverlay}>
-          <Feather name="play-circle" size={24} color="rgba(255,255,255,0.9)" />
-        </View>
-      </View>
-
-      <View style={styles.recordedContent}>
-        {course.badge && (
-          <Text style={styles.recordedCategory}>{course.badge}</Text>
-        )}
-        <Text style={styles.recordedTitle} numberOfLines={2}>
-          {course.title}
-        </Text>
-
-        <View style={styles.recordedMeta}>
-          {course.lectures && (
-            <View style={styles.recordedMetaItem}>
-              <Feather name="film" size={9} color="#64748b" />
-              <Text style={styles.recordedMetaText}>{course.lectures}</Text>
             </View>
           )}
-          {course.duration && (
-            <View style={styles.recordedMetaItem}>
-              <Feather name="clock" size={9} color="#64748b" />
-              <Text style={styles.recordedMetaText}>{course.duration}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.recordedFooter}>
-          {course.courseMode && (
-            <View style={styles.recordedRating}>
-              <Text style={styles.recordedRatingText}>{course.courseMode}</Text>
-            </View>
-          )}
-          <Text style={styles.recordedPrice}>₹{course.price?.toLocaleString()}</Text>
+          <Text style={styles.price}>₹{course.price?.toLocaleString()}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -261,49 +200,56 @@ export default function Course() {
 
   const courses = coursesResponse || [];
 
-  // Separate courses by type or category
-  const featuredCourses = courses.slice(0, 4); // First 4 as featured
-  const recordedCourses = courses.filter(c => c.courseMode === "offline").slice(0, 6);
-  const onlineCourses = courses.filter(c => c.courseMode === "online").slice(0, 6);
+  // Separate courses by type
+  const liveCourses = courses.filter(c => c.courseMode === "online").slice(0, 6);
+  const offlineCourses = courses.filter(c => c.courseMode === "offline").slice(0, 6);
+  const recordedCourses = courses.filter(c => c.courseMode === "recorded").slice(0, 6);
+
+  // Handle See All navigation
+  const handleSeeAll = (courseType) => {
+    navigation?.navigate?.("Courses", { type: courseType });
+  };
 
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={styles.scrollContent}
     >
-      {/* Featured Courses Section */}
+      {/* Live Courses Section */}
       <HorizontalSection
-        title="Featured Courses"
-        data={featuredCourses}
-        renderItem={({ item }) => <LatestCourseCard item={item} navigation={navigation} />}
-        keyExtractor={(item) => `featured-${item._id || item.id}`}
-        cardWidth={LATEST_CARD_WIDTH}
-        isLoading={isLoading}
-        error={error}
-      />
-
-
-      {/* Online Courses Section */}
-      <HorizontalSection
-        title="Online Learning"
-        data={onlineCourses}
-        renderItem={({ item }) => <RecordedCourseCard item={item} navigation={navigation} />}
-        keyExtractor={(item) => `online-${item._id || item.id}`}
+        title="Live Courses"
+        data={liveCourses}
+        renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
+        keyExtractor={(item) => `live-${item._id || item.id}`}
         cardWidth={RECORDED_CARD_WIDTH}
         isLoading={isLoading}
         error={error}
+        onSeeAll={() => handleSeeAll("Courses")}
       />
 
       {/* Offline Courses Section */}
       <HorizontalSection
-        title="Offline Learning"
-        data={recordedCourses}
-        renderItem={({ item }) => <RecordedCourseCard item={item} navigation={navigation} />}
+        title="Offline Courses"
+        data={offlineCourses}
+        renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
         keyExtractor={(item) => `offline-${item._id || item.id}`}
         cardWidth={RECORDED_CARD_WIDTH}
         isLoading={isLoading}
         error={error}
+        onSeeAll={() => handleSeeAll("Courses")}
+      />
+
+      {/* Recorded Courses Section */}
+      <HorizontalSection
+        title="Recorded Courses"
+        data={offlineCourses}
+        renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
+        keyExtractor={(item) => `recorded-${item._id || item.id}`}
+        cardWidth={RECORDED_CARD_WIDTH}
+        isLoading={isLoading}
+        error={error}
+        onSeeAll={() => handleSeeAll("Courses")}
       />
     </ScrollView>
   );
@@ -313,284 +259,208 @@ export default function Course() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f8fafc",
   },
+  scrollContent: {
+    paddingBottom: 14,
+  },
+  
+  // Section Styles
   sectionContainer: {
-    paddingLeft: 16,
-    marginBottom: 12,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
-    paddingRight: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: "700",
     color: "#0f172a",
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
-  seeAll: {
-    fontSize: 13,
-    fontWeight: "500",
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#eff6ff",
+    borderRadius: 20,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: "#3b82f6",
   },
+  
+  // List Styles
   horizontalList: {
+    paddingLeft: 16,
     paddingRight: 16,
   },
+  
+  // Loading/Error States
   loadingContainer: {
-    height: 200,
+    height: 240,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    borderRadius: 12,
   },
   errorContainer: {
-    height: 200,
+    height: 240,
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    borderRadius: 12,
   },
   errorText: {
     fontSize: 14,
+    fontWeight: "500",
     color: "#64748b",
   },
   emptyContainer: {
-    height: 200,
+    height: 240,
     justifyContent: "center",
     alignItems: "center",
+    gap: 12,
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    borderRadius: 12,
   },
   emptyText: {
     fontSize: 14,
-    color: "#94a3b8",
-  },
-
-  // Latest Course Card
-  latestCard: {
-    marginRight: CARD_MARGIN,
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-    overflow: "hidden",
-  },
-  latestImageContainer: {
-    position: "relative",
-  },
-  latestImage: {
-    width: "100%",
-    height: 140,
-  },
-  categoryTag: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    backgroundColor: "rgba(15, 23, 42, 0.75)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  categoryTagText: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "#ffffff",
-    letterSpacing: 0.5,
-  },
-  discountBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "#10b981",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  discountText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  latestContent: {
-    paddingTop: 12,
-    paddingHorizontal: 12,
-  },
-  latestTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 3,
-    lineHeight: 19,
-    letterSpacing: -0.2,
-  },
-  latestInstructor: {
-    fontSize: 11,
-    color: "#64748b",
-    marginBottom: 10,
-  },
-  latestMetrics: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  metric: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  metricDivider: {
-    width: 1,
-    height: 10,
-    backgroundColor: "#e2e8f0",
-    marginHorizontal: 8,
-  },
-  metricText: {
-    fontSize: 10,
-    color: "#475569",
-    fontWeight: "600",
-  },
-  latestFeatures: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  feature: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#f8fafc",
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 5,
-  },
-  featureText: {
-    fontSize: 9,
-    color: "#64748b",
     fontWeight: "500",
-  },
-  latestFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  latestPrice: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0f172a",
-    letterSpacing: -0.3,
-  },
-  latestOriginalPrice: {
-    fontSize: 10,
     color: "#94a3b8",
-    textDecorationLine: "line-through",
-    marginTop: 1,
-  },
-  enrollButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 7,
-  },
-  enrollButtonText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#ffffff",
   },
 
-  // Recorded Course Card
-  recordedCard: {
+  // Course Card Styles
+  courseCard: {
     marginRight: CARD_MARGIN,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  recordedImageContainer: {
+  
+  // Image Section
+  imageContainer: {
     position: "relative",
-  },
-  recordedImage: {
     width: "100%",
-    height: 85,
+    height: 160,
   },
-  recordedOverlay: {
+  courseImage: {
+    width: "100%",
+    height: "100%",
+  },
+  imageOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
-  recordedContent: {
-    padding: 10,
+  playButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(59, 130, 246, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  recordedCategory: {
-    fontSize: 8,
+  badge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 10,
     fontWeight: "700",
     color: "#3b82f6",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 4,
   },
-  recordedTitle: {
-    fontSize: 12,
+  
+  // Content Section
+  cardContent: {
+    padding: 5,
+  },
+  courseTitle: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#0f172a",
-    marginBottom: 3,
-    lineHeight: 16,
-    letterSpacing: -0.2,
-  },
-  recordedInstructor: {
-    fontSize: 9,
-    color: "#64748b",
+    lineHeight: 20,
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  recordedMeta: {
+  
+  // Meta Information
+  metaContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 12,
   },
-  recordedMetaItem: {
+  metaItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
   },
-  recordedMetaText: {
-    fontSize: 9,
+  metaText: {
+    fontSize: 11,
     color: "#64748b",
     fontWeight: "500",
   },
-  recordedFooter: {
+  
+  // Footer
+  cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  recordedRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 5,
-    paddingVertical: 3,
-    borderRadius: 4,
+  modeTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  recordedRatingText: {
-    fontSize: 9,
+  modeTagOnline: {
+    backgroundColor: "#dbeafe",
+  },
+  modeTagOffline: {
+    backgroundColor: "#fef3c7",
+  },
+  modeTagText: {
+    fontSize: 10,
     fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  modeTagTextOnline: {
+    color: "#1e40af",
+  },
+  modeTagTextOffline: {
     color: "#92400e",
   },
-  recordedPrice: {
-    fontSize: 13,
+  price: {
+    fontSize: 16,
     fontWeight: "800",
     color: "#0f172a",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
 });

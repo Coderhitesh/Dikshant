@@ -1,28 +1,27 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useAuthStore } from "../stores/auth.store";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient"; // Import LinearGradient
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Greet() {
-  const { getProfile } = useAuthStore();
-  const profile = getProfile();
+  const { user, token, getProfile, loggedIn } = useAuthStore();
 
-  // Greeting based on time
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
-  };
+  // Fetch profile only if logged in and user is not loaded
+  useEffect(() => {
+    if (loggedIn && token && !user) {
+      getProfile(); // This is a sync getter now? Wait — see note below!
+    }
+  }, [loggedIn, token, user, getProfile]);
 
-  // Short, powerful tips (≤ 70 chars)
+  // Tip of the day
   const tips = [
     "One focused hour beats three distracted ones.",
     "Revise weekly to lock in knowledge.",
@@ -38,39 +37,46 @@ export default function Greet() {
     return tips[Math.floor(Math.random() * tips.length)];
   }, []);
 
-  const greetingMessage = `${getGreeting()}, ${profile?.name || "there"}!`;
-
-  const showTipAlert = () => {
-    Alert.alert(
-      "Tip of the Day",
-      randomTip,
-      [{ text: "Got it!", style: "default" }],
-      { cancelable: true }
-    );
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
   };
 
+  const greetingMessage = `${getGreeting()}, ${user?.name?.split(" ")[0] || "there"}!`;
+
+  const showTipAlert = () => {
+    Alert.alert("Tip of the Day", randomTip, [{ text: "Got it!", style: "default" }]);
+  };
+
+  // Show loading if user is being fetched
+  if (loggedIn && token && !user) {
+    return (
+      <LinearGradient colors={["#DC3545", "#d62828"]} style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#fff" size="small" />
+          <Text style={styles.loadingText}>Loading your profile...</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   return (
-    // Apply LinearGradient to the container view
-    <LinearGradient
-      colors={["#DC3545", "#d62828"]} // Define gradient colors
-      style={styles.container}
-    >
-      {/* Greeting + Bulb Row */}
+    <LinearGradient colors={["#DC3545", "#d62828"]} style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.greetingContainer}>
           <Text style={styles.greeting}>{greetingMessage}</Text>
-          {profile?.mission && (
-            <Text style={styles.goal}>Goal: {profile.mission}</Text>
-          )}
+
+          {user?.mission ? (
+            <Text style={styles.goal}>Goal: {user.mission}</Text>
+          ) : user ? (
+            <Text style={styles.goal}>Set your goal to stay motivated!</Text>
+          ) : null}
         </View>
 
-        {/* Bulb Button → Opens Alert */}
-        <TouchableOpacity
-          style={styles.bulbButton}
-          onPress={showTipAlert}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="bulb-outline" size={26} color="#d62828" />
+        <TouchableOpacity style={styles.bulbButton} onPress={showTipAlert}>
+          <Ionicons name="bulb-outline" size={26} color="#fff" style={styles.bulbIcon} />
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -80,9 +86,20 @@ export default function Greet() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom:2,
-    flex: 1,
+    paddingVertical: 14,
+    marginBottom: 2
+  },
+
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  loadingText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Geist",
   },
 
   headerRow: {
@@ -97,31 +114,36 @@ const styles = StyleSheet.create({
   },
 
   greeting: {
-    fontSize: 21,
-    fontWeight: "700",
-    color: "#fff", // White text for better contrast
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
     fontFamily: "Geist",
-    lineHeight: 26,
+    lineHeight: 28,
   },
 
   goal: {
     fontSize: 15,
-    color: "#f8f8f8", // Lighter color for better readability
-    marginTop: 4,
-    fontFamily: "Geist",
+    color: "#ffebee",
+    marginTop: 6,
+    fontFamily: "Geist-Medium",
+    opacity: 0.9,
   },
 
   bulbButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#fdecec",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#d62828",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
+    backdropFilter: "blur(10px)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+
+  bulbIcon: {
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

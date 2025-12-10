@@ -16,9 +16,9 @@ const { width } = Dimensions.get("window");
 const ITEM_WIDTH = (width - 48 - 20) / 3;
 
 const data = [
-  { id: 1, title: "Online Classes", icon: "video", screen: "Courses", color: "#3b82f6", filter: "online" },
-  { id: 2, title: "Offline Classes", icon: "play-circle", screen: "Courses", color: "#8b5cf6", filter: "offline" },
-  { id: 3, title: "E-Books", icon: "book-open", screen: "EBooks", color: "#10b981" },
+  { id: 1, title: "Live Courses", icon: "video", screen: "Courses", color: "#3b82f6", filter: "online" },
+  { id: 2, title: "Recorded Courses", icon: "play-circle", screen: "Courses", color: "#8b5cf6", filter: "offline" },
+  { id: 3, title: "Offline Courses", icon: "book-open", screen: "EBooks", color: "#10b981" },
   { id: 4, title: "Study Hub", icon: "film", screen: "RecordedCourses", color: "#f59e0b" },
   { id: 5, title: "Quiz", icon: "help-circle", screen: "Quiz", color: "#ec4899" },
   { id: 6, title: "Test Series", icon: "check-square", screen: "TestSeries", color: "#06b6d4" },

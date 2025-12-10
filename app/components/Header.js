@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   logo: {
-    width: 60,
+    width: 120,
     height: 50,
     resizeMode: "contain",
   },

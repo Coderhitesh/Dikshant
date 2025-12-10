@@ -1,69 +1,123 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
+  Text,
   Image,
   Dimensions,
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
+  Linking,
 } from "react-native";
-
-// Images
-import img1 from "../assets/images/banner1.jpeg";
-import img2 from "../assets/images/banner-2.jpeg";
-import img3 from "../assets/images/online-course-hero.jpeg";
-
+import axios from "axios";
+import { API_URL_LOCAL_ENDPOINT } from "../constant/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_HEIGHT = SCREEN_WIDTH * 0.35;
-const images = [img1, img3, img2];
 const AUTO_PLAY_INTERVAL = 3000;
 
 export default function Slider() {
+  const [banners, setBanners] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
   const flatListRef = useRef(null);
+
+  // Fetch banners from API
+  const fetchBanners = async () => {
+    try {
+      const response = await axios.get(`${API_URL_LOCAL_ENDPOINT}/banners`);
+      setBanners(response.data);
+    } catch (error) {
+      console.error("Failed to fetch banners:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
 
   // Auto-play effect
   useEffect(() => {
+    if (banners.length === 0) return;
+
     const interval = setInterval(() => {
       setCurrentIndex((prev) => {
-        const next = (prev + 1) % images.length;
+        const next = (prev + 1) % banners.length;
         scrollToIndex(next);
         return next;
       });
     }, AUTO_PLAY_INTERVAL);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [banners]);
 
-  // Scroll to index with animation
   const scrollToIndex = (index) => {
     if (flatListRef.current) {
       flatListRef.current.scrollToIndex({ animated: true, index });
     }
   };
 
-  // Handle manual scroll end
   const handleScroll = (event) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / SCREEN_WIDTH);
     setCurrentIndex(index);
   };
 
+  const handleBannerPress = (linkUrl) => {
+    if (linkUrl) {
+      Linking.openURL(linkUrl).catch((err) =>
+        console.error("Failed to open URL:", err)
+      );
+    }
+  };
+
   const renderItem = ({ item }) => (
-    <View style={styles.slide}>
-      <Image source={item} style={styles.image} resizeMode="cover" />
-    </View>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => handleBannerPress(item.linkUrl)}
+      style={styles.slide}
+    >
+      <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+      {item.title ? (
+        <View style={styles.textOverlay}>
+          <Text style={styles.titleText}>{item.title}</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#1976D2" />
+      </View>
+    );
+  }
+
+  if (banners.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Image
+          source={require("../assets/images/placeholder.png")}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Slider */}
       <FlatList
         ref={flatListRef}
-        data={images}
+        data={banners}
         renderItem={renderItem}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item) => item.id.toString()}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -77,7 +131,7 @@ export default function Slider() {
 
       {/* Pagination Dots */}
       <View style={styles.pagination}>
-        {images.map((_, index) => (
+        {banners.map((_, index) => (
           <TouchableOpacity
             key={index}
             style={[
@@ -105,11 +159,26 @@ const styles = StyleSheet.create({
   slide: {
     width: SCREEN_WIDTH,
     height: SLIDE_HEIGHT,
+    position: "relative",
   },
   image: {
     width: "100%",
     height: "100%",
-
+  },
+  textOverlay: {
+    position: "absolute",
+    bottom: 8,
+    left: 12,
+    right: 12,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  titleText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   pagination: {
     position: "absolute",

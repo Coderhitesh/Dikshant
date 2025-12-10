@@ -27,10 +27,11 @@ import * as ExpoNotifications from "expo-notifications";
 import * as Location from "expo-location";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
+import Scholarship from "./pages/Scholarship/AllScholarship";
+import ApplyScholarship from "./pages/Scholarship/ApplyScholarship";
 
 const Stack = createNativeStackNavigator();
 
-// Configure notification handler
 ExpoNotifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -331,6 +332,9 @@ export default function App() {
         <Stack.Screen name="About" component={About} />
         <Stack.Screen name="Notifications" component={Notifications} />
         <Stack.Screen name="Permissions" component={PermissionsScreen} />
+        <Stack.Screen name="apply-sch" component={Scholarship}/>
+        <Stack.Screen name="ApplyScholarship" component={ApplyScholarship}/>
+
       </Stack.Navigator>
     </NavigationContainer>
   );

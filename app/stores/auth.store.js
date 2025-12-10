@@ -1,84 +1,30 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { API_URL_LOCAL_ENDPOINT } from "../constant/api";
 
-const STATIC_PHONE = "7217619794";
-const STATIC_OTP = "123456";
-
-// Store registered users temporarily (in production, this would be on backend)
-let registeredUsers = {};
+axios.defaults.baseURL = API_URL_LOCAL_ENDPOINT;
+axios.defaults.headers.common["Content-Type"] = "application/json";
 
 export const useAuthStore = create((set, get) => ({
   phone: "",
   token: null,
   loggedIn: false,
   otpSent: false,
-  signupData: null, // Store signup data temporarily
+  user: null,
+  userId: null,
 
   // 🔹 Set phone number
   setPhone: (phone) => set({ phone }),
 
-  // 🔹 Step 1: Send OTP for Login (THROW errors)
-  sendOtp: async (phone) => {
-    try {
-      if (phone !== STATIC_PHONE) {
-        throw new Error("Phone number not registered!");
-      }
-
-      set({ otpSent: true, phone });
-
-      return {
-        success: true,
-        message: `OTP Sent Successfully to ${phone}`,
-        otp: STATIC_OTP,
-      };
-    } catch (error) {
-      console.error("sendOtp Error:", error);
-      throw error;
-    }
-  },
-
-  // 🔹 Step 2: Verify OTP for Login (THROW errors)
-  login: async (otp) => {
-    try {
-      const { otpSent } = get();
-
-      if (!otpSent) {
-        throw new Error("Please request OTP first");
-      }
-
-      if (otp !== STATIC_OTP) {
-        throw new Error("Invalid OTP");
-      }
-
-      const tempToken = "TEMP_TOKEN_" + Date.now();
-      await AsyncStorage.setItem("authToken", tempToken);
-
-      set({
-        loggedIn: true,
-        token: tempToken,
-        otpSent: false,
-      });
-
-      return { success: true, message: "Login Successful" };
-    } catch (error) {
-      console.error("Login Error:", error);
-      throw error;
-    }
-  },
-
-  // 🔹 NEW: Signup - Register new user and send OTP
+  // 🔹 Step 1: Signup - Register new user
   signup: async (formData) => {
     try {
-      const { name, email, phone, mission } = formData;
+      const { name, email, phone, password } = formData;
 
       // Validation
-      if (!name || !email || !phone || !mission) {
+      if (!name || !email || !phone || !password) {
         throw new Error("All fields are required");
-      }
-
-      // Check if phone already registered
-      if (registeredUsers[phone]) {
-        throw new Error("Phone number already registered. Please login.");
       }
 
       // Check email format
@@ -89,181 +35,323 @@ export const useAuthStore = create((set, get) => ({
 
       // Check phone format
       if (!/^[0-9]{10}$/.test(phone)) {
+        throw new Error("Invalid phone number (must be 10 digits)");
+      }
+
+      // Call signup API
+      const response = await axios.post("/auth/signup", {
+        name,
+        email,
+        mobile: phone,
+        password,
+      });
+      console.log("response", response.data.user);
+      const { id } = response.data.user;
+
+      // Save userId to AsyncStorage
+      await AsyncStorage.setItem("userId", id.toString());
+
+      set({ otpSent: true, phone, userId: id });
+
+      return {
+        success: true,
+        message: "Signup successful! OTP sent to your phone.",
+      };
+    } catch (error) {
+      console.error("Signup Error:", error);
+      const errorMessage =
+        error.response?.data?.message || error.message || "Signup failed";
+      throw new Error(errorMessage);
+    }
+  },
+
+  // 🔹 Step 2: Request OTP (for login or signup verification)
+  requestOtp: async (phone) => {
+    try {
+      if (!phone || !/^[0-9]{10}$/.test(phone)) {
         throw new Error("Invalid phone number");
       }
 
-      // Store signup data temporarily
-      set({
-        signupData: { name, email, phone, mission },
-        otpSent: true,
-        phone
+      const response = await axios.post("/auth/request-otp", {
+        mobile: phone,
       });
 
-      // In production, call API to send OTP
-      console.log("Signup OTP sent to:", phone);
+      const { user_id } = response.data;
+
+      // Save userId to AsyncStorage
+      await AsyncStorage.setItem("userId", user_id.toString());
+
+      set({ otpSent: true, phone, userId: user_id });
 
       return {
         success: true,
         message: `OTP sent successfully to ${phone}`,
-        otp: STATIC_OTP, // Remove in production
+        userId: user_id,
       };
     } catch (error) {
-      console.error("Signup Error:", error);
-      throw error;
+      console.error("Request OTP Error:", error);
+      const errorMessage =
+        error.response?.data?.message || error.message || "Failed to send OTP";
+      throw new Error(errorMessage);
     }
   },
 
-  // 🔹 NEW: Verify Signup OTP and complete registration
-  verifySignupOtp: async (otp) => {
+  // 🔹 Step 3: Verify OTP (completes signup or enables login)
+  verifyOtp: async (otp) => {
     try {
-      const { signupData, otpSent } = get();
+      const { userId, phone } = get();
 
-      if (!otpSent || !signupData) {
-        throw new Error("Please complete signup form first");
+      if (!userId) {
+        throw new Error("Please request OTP first");
       }
 
-      // Verify OTP
-      if (otp !== STATIC_OTP) {
-        throw new Error("Invalid OTP. Please try again.");
+      if (!otp || otp.length !== 6) {
+        throw new Error("Invalid OTP format");
       }
 
-      // Register the user
-      registeredUsers[signupData.phone] = {
-        name: signupData.name,
-        email: signupData.email,
-        phone: signupData.phone,
-        mission: signupData.mission,
-        registeredAt: new Date().toISOString(),
-      };
-
-      // Store registered users in AsyncStorage
-      await AsyncStorage.setItem(
-        "registeredUsers",
-        JSON.stringify(registeredUsers)
-      );
-
-      // 🔥 Generate and save auth token
-      const authToken = "TEMP_TOKEN_" + Date.now() + "_" + signupData.phone;
-      await AsyncStorage.setItem("authToken", authToken);
-
-      // 🔥 Update state with logged in user
-      set({
-        loggedIn: true,
-        token: authToken,
-        phone: signupData.phone,
-        signupData: null,
-        otpSent: false,
+      const response = await axios.post("/auth/verify-otp", {
+        user_id: userId,
+        otp: otp,
       });
 
-      console.log("User registered and logged in:", signupData.phone);
+      const { token, user } = response.data;
+      console.log("response.data", response.data);
+      // Save all data to AsyncStorage
+      await AsyncStorage.multiSet([["authToken", token]]);
+
+      // Configure axios with token for future requests
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      set({
+        loggedIn: true,
+        token: token,
+        user: user,
+        phone: phone,
+        userId: user.id,
+        otpSent: false,
+      });
 
       return {
         success: true,
-        message: "Account created successfully!",
-        token: authToken,
+        message: "Login successful!",
+        token: token,
+        user: user,
       };
     } catch (error) {
-      console.error("verifySignupOtp Error:", error);
-      throw error;
+      console.error("Verify OTP Error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "OTP verification failed";
+      throw new Error(errorMessage);
     }
   },
 
-  // 🔹 Check login state (THROW errors)
-  checkLogin: async () => {
+  // 🔹 Step 4: Direct Login with Password
+  login: async (phone,otp, password) => {
     try {
-      const token = await AsyncStorage.getItem("authToken");
-      console.log("token", token);
-
-      if (token) {
-        // Load registered users
-        const usersJson = await AsyncStorage.getItem("registeredUsers");
-        if (usersJson) {
-          registeredUsers = JSON.parse(usersJson);
-        }
-
-        set({
-          loggedIn: true,
-          token,
-          phone: STATIC_PHONE,
-        });
+      if (!phone) {
+        throw new Error("Phone number is required");
       }
+
+      if (!/^[0-9]{10}$/.test(phone)) {
+        throw new Error("Invalid phone number");
+      }
+
+      const response = await axios.post("/auth/login", {
+        mobile: phone,
+        otp: otp ? otp : "",
+        password: password ? password : "",
+      });
+
+      console.log("response.data", response.data);
+
+      // If OTP was sent (NO TOKEN)
+      if (
+        response.data.success &&
+        response.data.message === "OTP sent successfully"
+      ) {
+        return {
+          success: true,
+          otpSent: true,
+          userId: response.data.user_id,
+          message: "OTP sent successfully",
+        };
+      }
+
+      // Password login - save token
+      const { token, user } = response.data;
+
+      if (!token) {
+        throw new Error("Token missing in response");
+      }
+
+      await AsyncStorage.setItem("authToken", token);
+
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      set({
+        loggedIn: true,
+        token: token,
+        user: user,
+        phone: phone,
+        userId: user.id,
+      });
+
+      return {
+        success: true,
+        otpSent: false,
+        message: "Login successful!",
+        token: token,
+        user: user,
+      };
     } catch (error) {
-      console.error("checkLogin Error:", error);
-      throw error;
+      console.error(
+        "Login Error:",
+        error.response?.data?.error || error.message
+      );
+      const errorMessage =
+        error.response?.data?.error || error.message || "Login failed";
+      throw new Error(errorMessage);
     }
   },
 
-  // 🔹 Logout (THROW errors)
+  getProfileApi: async () => {
+    try {
+
+      // Fetch token
+      const authToken = await AsyncStorage.getItem("authToken");
+
+      if (!authToken) {
+        console.log("⚠️ [getProfile] No token found → returning false");
+        return false;
+      }
+
+      // Apply token to axios
+      axios.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
+
+      // API Call
+      console.log("🌍 [getProfile] Calling API: /auth/profile-details");
+      const response = await axios.get("/auth/profile-details");
+
+
+      const user = response.data.data;
+      // console.log("👤 [getProfile] Extracted User:", user);
+
+      // Store in Zustand
+      set({
+        loggedIn: true,
+        token: authToken,
+        user: user,
+        userId: user.id,
+        phone: user.mobile,
+      });
+
+      console.log("✅ [getProfile] User saved in store:", {
+        id: user.id,
+        name: user.name,
+        phone: user.mobile,
+      });
+
+      return user;
+    } catch (error) {
+      console.error(
+        "❌ [getProfile] Error:",
+        error.response?.data || error.message
+      );
+      return false;
+    }
+  },
+
+  // 🔹 Check login state on app start
+checkLogin: async () => {
+  try {
+    const tokenValue = await AsyncStorage.getItem("authToken");
+    
+    if (!tokenValue) {
+      return false;
+    }
+
+    // Set token in axios
+    axios.defaults.headers.common["Authorization"] = `Bearer ${tokenValue}`;
+
+    // Try to fetch profile
+    const user = await get().getProfileApi();
+
+    return !!user; 
+  } catch (error) {
+    console.error("checkLogin error:", error);
+    return false;
+  }
+},
+
+  // 🔹 Logout
   logout: async (navigation) => {
     try {
-      await AsyncStorage.removeItem("authToken");
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      });
+      // Clear all auth data from AsyncStorage
+      await AsyncStorage.multiRemove(["authToken"]);
+
+      // Remove token from axios headers
+      delete axios.defaults.headers.common["Authorization"];
+
+      if (navigation) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        });
+      }
+
       set({
         loggedIn: false,
         token: null,
+        user: null,
         phone: "",
         otpSent: false,
-        signupData: null,
+        userId: null,
       });
+
+      return { success: true, message: "Logged out successfully" };
     } catch (error) {
       console.error("Logout Error:", error);
       throw error;
     }
   },
 
-  // 🔹 Get Profile (enhanced to support multiple users)
+  // 🔹 Get current user profile
   getProfile: () => {
-    const { phone } = get();
-
-    // If user is registered, return their data
-    if (registeredUsers[phone]) {
-      return {
-        name: registeredUsers[phone].name,
-        email: registeredUsers[phone].email,
-        phone: registeredUsers[phone].phone,
-        mission: registeredUsers[phone].mission,
-        age: "22", // Can be added to signup form
-        dob: "12-04-2003", // Can be added to signup form
-      };
-    }
-
-    // Default static profile
+    const { user, phone, userId } = get();
     return {
-      name: "Anish",
-      age: "22",
-      dob: "12-04-2003",
-      mission: "Crack IAS with dedication",
-      phone: STATIC_PHONE,
+      ...user,
+      phone,
+      userId,
     };
   },
 
-  // 🔹 BONUS: Check if phone is already registered
-  isPhoneRegistered: (phone) => {
-    return !!registeredUsers[phone];
-  },
-
-  // 🔹 BONUS: Resend OTP for signup
-  resendSignupOtp: async () => {
+  // 🔹 Resend OTP
+  resendOtp: async () => {
     try {
-      const { signupData } = get();
+      const { phone } = get();
 
-      if (!signupData) {
-        throw new Error("No signup session found");
+      if (!phone) {
+        throw new Error("No phone number found");
       }
 
-      console.log("Resending OTP to:", signupData.phone);
-
-      return {
-        success: true,
-        message: `OTP resent to ${signupData.phone}`,
-        otp: STATIC_OTP,
-      };
+      return await get().requestOtp(phone);
     } catch (error) {
       console.error("Resend OTP Error:", error);
       throw error;
+    }
+  },
+
+  // 🔹 Clear OTP state
+  clearOtpState: () => {
+    set({ otpSent: false, userId: null });
+  },
+
+  // 🔹 Update axios token manually (if needed)
+  setAxiosToken: (token) => {
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
   },
 }));
