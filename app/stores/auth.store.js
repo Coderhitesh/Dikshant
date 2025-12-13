@@ -45,7 +45,6 @@ export const useAuthStore = create((set, get) => ({
         mobile: phone,
         password,
       });
-      console.log("response", response.data.user);
       const { id } = response.data.user;
 
       // Save userId to AsyncStorage

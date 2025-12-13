@@ -1,141 +1,205 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Dimensions,
-  Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
-const ITEM_WIDTH = (width - 48 - 20) / 3;
 
-const data = [
-  { id: 1, title: "Live Courses", icon: "video", screen: "Courses", color: "#3b82f6", filter: "online" },
-  { id: 2, title: "Recorded Courses", icon: "play-circle", screen: "Courses", color: "#8b5cf6", filter: "offline" },
-  { id: 3, title: "Offline Courses", icon: "book-open", screen: "EBooks", color: "#10b981" },
-  { id: 4, title: "Study Hub", icon: "film", screen: "RecordedCourses", color: "#f59e0b" },
-  { id: 5, title: "Quiz", icon: "help-circle", screen: "Quiz", color: "#ec4899" },
-  { id: 6, title: "Test Series", icon: "check-square", screen: "TestSeries", color: "#06b6d4" },
+// Card width: screen width minus horizontal padding (16 on each side) and gaps
+// 3 cards + 2 gaps (12px each) → total gap width = 24px
+const CARD_WIDTH = (width - 32 - 24) / 3;
+
+const categories = [
+  {
+    id: 1,
+    title: "Live Classes",
+    subtitle: "Interactive learning",
+    icon: "video",
+    screen: "Courses",
+    filter: "online",
+    gradient: ["#667eea", "#764ba2"],
+    students: "50K+",
+    comingSoon: false,
+  },
+  {
+    id: 2,
+    title: "Recorded Courses",
+    subtitle: "Learn at your pace",
+    icon: "play-circle",
+    screen: "Courses",
+    filter: "recorded",
+    gradient: ["#f093fb", "#f5576c"],
+    students: "1M+",
+    comingSoon: false,
+  },
+  {
+    id: 3,
+    title: "Offline Classes",
+    subtitle: "Classroom experience",
+    icon: "map-pin",
+    screen: "Courses",
+    filter: "offline",
+    gradient: ["#4facfe", "#00f2fe"],
+    students: "25K+",
+    comingSoon: false,
+  },
+  {
+    id: 4,
+    title: "Study Materials",
+    subtitle: "Notes & PDFs",
+    icon: "book-open",
+    screen: "ComingSoon",
+    gradient: ["#43e97b", "#38f9d7"],
+    students: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    id: 5,
+    title: "Mock Tests",
+    subtitle: "Practice & improve",
+    icon: "edit-3",
+    screen: "ComingSoon",
+    gradient: ["#fa709a", "#fee140"],
+    students: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    id: 6,
+    title: "Doubt Solving",
+    subtitle: "Get instant help",
+    icon: "help-circle",
+    screen: "ComingSoon",
+    gradient: ["#a8edea", "#fed6e3"],
+    students: "Coming Soon",
+    comingSoon: true,
+  },
 ];
 
+const QuickActionItem = ({ item }) => {
+  const navigation = useNavigation();
 
-const CategoryCard = ({ item, navigation }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const handlePress = () => {
+    if (item.comingSoon) return;
 
-  const animate = (toValue) => {
-    Animated.spring(scaleAnim, {
-      toValue,
-      useNativeDriver: true,
-      friction: 4,
-      tension: 80,
-    }).start();
+    if (item.screen === "Courses" && item.filter) {
+      navigation.navigate(item.screen, { filter: item.filter });
+    } else {
+      navigation.navigate(item.screen);
+    }
   };
 
   return (
     <TouchableOpacity
-      activeOpacity={0.9}
-      onPressIn={() => animate(0.92)}
-      onPressOut={() => animate(1)}
-     onPress={() =>
-  navigation.navigate(item.screen, {
-    filter: item?.filter ?? null,
-    from: "category-home",
-  })
-}
-
+      style={[styles.quickActionItem, { width: CARD_WIDTH }]}
+      onPress={handlePress}
+      activeOpacity={0.7}
+      disabled={item.comingSoon}
     >
-      <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-        <LinearGradient
-          colors={[`${item.color}20`, `${item.color}05`]}
-          style={styles.gradientBg}
-        />
-
-        <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
-          <Feather name={item.icon} size={18} color={item.color} />
+      <View style={styles.quickActionIcon}>
+        <Feather name={item.icon} size={16} color="#ef4444" />
+      </View>
+      <Text style={styles.quickActionText} numberOfLines={1}>
+        {item.title}
+      </Text>
+      {item.comingSoon && (
+        <View style={styles.comingSoonBadge}>
+          <Text style={styles.comingSoonText}>Soon</Text>
         </View>
-
-        <Text style={styles.title} numberOfLines={2}>
-          {item.title}
-        </Text>
-      </Animated.View>
+      )}
     </TouchableOpacity>
   );
 };
 
 export default function Categories() {
-  const navigation = useNavigation()
+  // Split into two rows
+  const firstRow = categories.slice(0, 3);
+  const secondRow = categories.slice(3, 6);
+
   return (
     <View style={styles.container}>
-      <FlatList
-        data={data}
-        numColumns={3}
-        renderItem={({ item }) => (
-          <CategoryCard item={item} navigation={navigation} />
-        )}
-        keyExtractor={(item) => item.id.toString()}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 10 }}
-      />
+      <View style={styles.quickActionsSection}>
+        {/* First Row - 3 items */}
+        <View style={styles.row}>
+          {firstRow.map((item) => (
+            <QuickActionItem key={item.id} item={item} />
+          ))}
+        </View>
+
+        {/* Second Row - 3 items */}
+        <View style={[styles.row, styles.secondRow]}>
+          {secondRow.map((item) => (
+            <QuickActionItem key={item.id} item={item} />
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 12,
-    paddingHorizontal:5,
-    marginBottom: 12,
+    flex: 1,
+    backgroundColor: "#f8fafc",
   },
-
+  quickActionsSection: {
+    backgroundColor: "#ffffff",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
   row: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
     justifyContent: "space-between",
-    marginBottom: 10,
   },
-
-  card: {
-    width: ITEM_WIDTH,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+  secondRow: {
+    marginTop: 12,
+  },
+  quickActionItem: {
     alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-
-    // Subtle clean shadow
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
-  },
-
-  gradientBg: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
-  },
-
-  iconCircle: {
-    width: 38,
-    height: 38,
+    backgroundColor: "#fef2f2",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    position: "relative",
+  },
+  quickActionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#fee2e2",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 6,
   },
-
-  title: {
-    fontSize: 9.8,
+  quickActionText: {
+    fontSize: 11,
     fontWeight: "600",
-    color: "#374151",
+    color: "#475569",
     textAlign: "center",
-    lineHeight: 14,
+  },
+  comingSoonBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  comingSoonText: {
+    color: "#ef4444",
+    fontSize: 8,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 });

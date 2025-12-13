@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Animated,
+  LayoutAnimation,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -18,27 +20,67 @@ import { fetcher } from "../../constant/fetcher";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import YoutubePlayer from "react-native-youtube-iframe";
-import { colors } from "../../constant/color";
-import { WebView } from "react-native-webview";
+
 const { width } = Dimensions.get("window");
 
-const FALLBACK_DEMOS = [
-  {
-    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    title: "Course Introduction & Overview",
-    duration: "5:30",
-  },
-  {
-    url: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-    title: "What You'll Learn",
-    duration: "8:45",
-  },
-  {
-    url: "https://www.youtube.com/watch?v=9bZkp7q19f0",
-    title: "Course Preview & Curriculum",
-    duration: "12:20",
-  },
-];
+// Updated color scheme
+const colors = {
+  primary: "#DC2626", // Red
+  secondary: "#1F2937", // Dark gray/black
+  background: "#FFFFFF", // White
+  surface: "#FAFAFA", // Light gray
+  text: "#111827", // Dark text
+  textSecondary: "#6B7280", // Gray text
+  textLight: "#9CA3AF", // Light gray text
+  accent: "#EF4444", // Light red
+  success: "#10B981", // Green
+  warning: "#F59E0B", // Orange
+  danger: "#DC2626", // Red
+  border: "#E5E7EB", // Light border
+  white: "#FFFFFF",
+  black: "#000000",
+};
+
+const AccordionItem = ({
+  title,
+  children,
+  icon = "book",
+  initiallyOpen = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
+  const [heightAnim] = useState(new Animated.Value(initiallyOpen ? 1 : 0));
+
+  const toggleAccordion = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsOpen(!isOpen);
+  };
+
+  const rotateAnim = heightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <View style={styles.accordionContainer}>
+      <TouchableOpacity
+        style={styles.accordionHeader}
+        onPress={toggleAccordion}
+        activeOpacity={0.8}
+      >
+        <View style={styles.accordionHeaderLeft}>
+          <Feather name={icon} size={18} color={colors.primary} />
+          <Text style={styles.accordionTitle}>{title}</Text>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: rotateAnim }] }}>
+          <Feather name="chevron-down" size={20} color={colors.textLight} />
+        </Animated.View>
+      </TouchableOpacity>
+
+      {isOpen && <View style={styles.accordionContent}>{children}</View>}
+    </View>
+  );
+};
 
 export default function CourseDetail() {
   const route = useRoute();
@@ -51,19 +93,50 @@ export default function CourseDetail() {
   const [currentVideo, setCurrentVideo] = useState(null);
   const [playing, setPlaying] = useState(false);
 
+  // Fetch batch details
   const {
-    data: course,
-    error,
-    isLoading,
-  } = useSWR(`/courses/${courseId}`, fetcher, {
+    data: batchData,
+    error: batchError,
+    isLoading: batchLoading,
+  } = useSWR(courseId ? `/batchs/${courseId}` : null, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
 
+  // Fetch videos for this batch
+  const {
+    data: videosResponse,
+    error: videosError,
+    isLoading: videosLoading,
+  } = useSWR(courseId ? `/videocourses/batch/${courseId}` : null, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  const videos = useMemo(() => {
+    return videosResponse?.data || [];
+  }, [videosResponse]);
+
+  const { demoVideos, lockedVideos } = useMemo(() => {
+    const demo = videos.filter((v) => v.isDemo && v.status === "active");
+    const locked = videos.filter((v) => !v.isDemo && v.status === "active");
+    return { demoVideos: demo, lockedVideos: locked };
+  }, [videos]);
+
+  // Calculate discount percentage
+  const discountPercent = useMemo(() => {
+    if (!batchData?.batchPrice || !batchData?.batchDiscountPrice) return 0;
+    return Math.round(
+      ((batchData.batchPrice - batchData.batchDiscountPrice) /
+        batchData.batchPrice) *
+        100
+    );
+  }, [batchData]);
+
   const triggerHaptic = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) { }
+    } catch (e) {}
   };
 
   const handleBack = () => {
@@ -72,8 +145,14 @@ export default function CourseDetail() {
   };
 
   const handleEnrollPress = () => {
-    triggerHaptic();
-    setShowPaymentModal(true);
+    if (batchData?.isEmi) {
+      setShowPaymentModal(true);
+      triggerHaptic();
+    } else {
+      navigation.navigate("enroll-course", {
+       batchId: batchData.id, userId: 456
+      });
+    }
   };
 
   const handlePaymentSelect = (type) => {
@@ -84,7 +163,14 @@ export default function CourseDetail() {
   const handleConfirmPayment = () => {
     triggerHaptic();
     setShowPaymentModal(false);
-    console.log("Payment confirmed:", selectedPayment);
+    console.log("Payment confirmed:", {
+      type: selectedPayment,
+      batchId: batchData?.id,
+      amount:
+        selectedPayment === "full"
+          ? batchData?.batchDiscountPrice
+          : batchData?.emiSchedule?.[0]?.amount,
+    });
   };
 
   const handleVideoPress = (video) => {
@@ -111,7 +197,7 @@ export default function CourseDetail() {
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const regex =
-      /(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([^&\n?#]+)/;
+      /(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/|youtube\.com\/shorts\/)([^&\n?#]+)/;
     const match = url.match(regex);
     return match ? match[1] : null;
   };
@@ -123,86 +209,62 @@ export default function CourseDetail() {
       : null;
   };
 
-  // Demo Videos Logic with Fallback
-  const demoVideos = (() => {
-    const videos = [];
+  // Format dates
+  const formatDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
-    if (course?.demoVideo && typeof course.demoVideo === "string") {
-      videos.push({
-        url: course.demoVideo,
-        title: "Course Introduction",
-      });
-    }
+  const calculateFinalPrice = (price) => {
+    if (!price) return price;
+    return Math.round(price);
+  };
 
-    if (Array.isArray(course?.videos)) {
-      course.videos.forEach((url) => {
-        videos.push({
-          url,
-          title: `Demo Video ${videos.length + 1}`,
-        });
-      });
-    }
-
-    // Use fallback if no videos available
-    return videos.length > 0 ? videos : FALLBACK_DEMOS;
-  })();
-
-  const totalVideos = course?.totalVideos || 45;
-  const lockedVideos = Math.max(
-    0,
-    totalVideos - (demoVideos === FALLBACK_DEMOS ? 0 : demoVideos.length)
-  );
-
-  if (isLoading) {
+  if (batchLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading course...</Text>
+        <Text style={styles.loadingText}>Loading course details...</Text>
       </SafeAreaView>
     );
   }
 
-  if (error || !course) {
+  if (batchError || !batchData) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <Feather name="alert-circle" size={64} color={colors.danger} />
+        <Feather name="alert-circle" size={48} color={colors.danger} />
         <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
         <Text style={styles.errorText}>
           We couldn't load the course details
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleBack}>
-          <Feather name="arrow-left" size={20} color={colors.white} />
+          <Feather name="arrow-left" size={18} color={colors.white} />
           <Text style={styles.retryText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
-  const imageUrl = course.image?.url;
-  const discount = course.originalPrice
-    ? Math.round(
-      ((course.originalPrice - course.price) / course.originalPrice) * 100
-    )
-    : 0;
-
-  const hasInstallments =
-    course.firstInstallment ||
-    course.secondInstallment ||
-    course.thirdInstallment ||
-    course.fourthInstallment;
+  const finalPriceWithGST = calculateFinalPrice(batchData.batchDiscountPrice);
+  const savings = batchData.batchPrice - batchData.batchDiscountPrice;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Feather name="arrow-left" size={24} color={colors.secondary} />
+          <Feather name="arrow-left" size={22} color={colors.secondary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           Course Details
         </Text>
         <TouchableOpacity style={styles.iconButton} onPress={triggerHaptic}>
-          <Feather name="share-2" size={22} color={colors.secondary} />
+          <Feather name="share-2" size={20} color={colors.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -214,144 +276,174 @@ export default function CourseDetail() {
         {/* Hero Image */}
         <View style={styles.hero}>
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: batchData.imageUrl }}
             style={styles.heroImage}
-            resizeMode="cover"
+            resizeMode="contain"
           />
-          {course.badge && (
-            <View style={styles.heroBadge}>
-              <Feather name="award" size={14} color={colors.white} />
-              <Text style={styles.heroBadgeText}>{course.badge}</Text>
-            </View>
-          )}
-          {discount > 0 && (
+
+          {discountPercent > 0 && (
             <View style={styles.discountTag}>
-              <Text style={styles.discountTagText}>{discount}% OFF</Text>
+              <Text style={styles.discountTagText}>{discountPercent}% OFF</Text>
             </View>
           )}
         </View>
 
         {/* Course Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.courseTitle}>{course.title}</Text>
-          {course.shortContent && (
-            <Text style={styles.courseSubtitle}>{course.shortContent}</Text>
+          <Text style={styles.courseTitle}>{batchData.name}</Text>
+
+          {/* Program Name */}
+          {batchData.program?.name && (
+            <View style={styles.programBadge}>
+              <Feather name="layers" size={12} color={colors.primary} />
+              <Text style={styles.programName}>{batchData.program.name}</Text>
+            </View>
+          )}
+
+          {batchData.shortDescription && (
+            <Text style={styles.courseSubtitle}>
+              {batchData.shortDescription}
+            </Text>
           )}
 
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Feather name="play-circle" size={18} color={colors.primary} />
-              <Text style={styles.statText}>{course.lectures} Lectures</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Feather name="clock" size={18} color={colors.primary} />
-              <Text style={styles.statText}>{course.duration}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Feather name="globe" size={18} color={colors.primary} />
-              <Text style={styles.statText}>{course.languages}</Text>
-            </View>
-          </View>
-
-          {/* Mode Badge */}
-          <View
-            style={[
-              styles.modeBadge,
-              course.courseMode === "online"
-                ? styles.onlineBadge
-                : styles.offlineBadge,
-            ]}
-          >
-            <Feather
-              name={course.courseMode === "online" ? "wifi" : "download"}
-              size={16}
-              color={colors.white}
-            />
-            <Text style={styles.modeText}>
-              {course.courseMode === "online" ? "Online" : "Offline"} Course
-            </Text>
-          </View>
-        </View>
-
-        {/* Demo Videos Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Demo Videos</Text>
-            <View style={styles.videoCountBadge}>
-              <Feather name="unlock" size={11} color={colors.success} />
-              <Text style={styles.videoCountText}>{demoVideos.length} Free</Text>
-            </View>
-          </View>
-
-          {demoVideos === FALLBACK_DEMOS && (
-            <View style={styles.fallbackNotice}>
-              <Feather name="info" size={12} color={colors.softRed} />
-              <Text style={styles.fallbackText}>Sample preview videos</Text>
-            </View>
-          )}
-
-          {/* Video List - Compact */}
-          {demoVideos.map((video, index) => {
-            const videoId = getYouTubeVideoId(video.url);
-            const thumbnailUrl = getYouTubeThumbnail(video.url);
-
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.videoItem}
-                onPress={() => handleVideoPress(video)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.videoThumb}>
-                  {thumbnailUrl ? (
-                    <Image
-                      source={{ uri: thumbnailUrl }}
-                      style={styles.thumbImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.thumbPlaceholder}>
-                      <Feather name="video" size={16} color={colors.white} />
-                    </View>
-                  )}
-                  <View style={styles.playIcon}>
-                    <Feather name="play" size={12} color={colors.white} />
-                  </View>
-                  {video.duration && (
-                    <View style={styles.durationTag}>
-                      <Text style={styles.durationText}>{video.duration}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.videoDetails}>
-                  <Text style={styles.videoTitle} numberOfLines={2}>
-                    {video.title}
-                  </Text>
-                  <View style={styles.videoFooter}>
-                    <View style={styles.freeTag}>
-                      <Text style={styles.freeTagText}>FREE</Text>
-                    </View>
-                    <Feather name="chevron-right" size={14} color={colors.darkGray} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-
-          {/* Locked Videos */}
-          {lockedVideos > 0 && (
-            <View style={styles.lockedCard}>
-              <Feather name="lock" size={16} color={colors.darkGray} />
-              <Text style={styles.lockedText}>
-                +{lockedVideos} videos locked · Enroll to unlock
+              <Feather name="calendar" size={14} color={colors.primary} />
+              <Text style={styles.statText}>
+                {formatDate(batchData.startDate)}
               </Text>
             </View>
-          )}
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Feather name="book-open" size={14} color={colors.primary} />
+              <Text style={styles.statText}>
+                {batchData.subjects?.length || 0} Subjects
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Feather name="video" size={14} color={colors.primary} />
+              <Text style={styles.statText}>{videos.length} Videos</Text>
+            </View>
+          </View>
         </View>
+
+        {/* Long Description */}
+        {batchData.longDescription && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About This Course</Text>
+            <View style={styles.descriptionCard}>
+              <Text style={styles.descriptionText}>
+                {batchData.longDescription}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Subjects Section */}
+        {batchData.subjects && batchData.subjects.length > 0 && (
+          <View style={styles.section}>
+            <AccordionItem
+              title={`Course Subjects (${batchData.subjects.length})`}
+              icon="book-open"
+              initiallyOpen={false}
+            >
+              <View style={styles.subjectsGrid}>
+                {batchData.subjects.map((subject) => (
+                  <View key={subject.id} style={styles.subjectCard}>
+                    <View style={styles.subjectIcon}>
+                      <Feather name="book" size={18} color={colors.primary} />
+                    </View>
+                    <View style={styles.subjectInfo}>
+                      <Text style={styles.subjectName}>{subject.name}</Text>
+                      {subject.description && (
+                        <Text style={styles.subjectDesc} numberOfLines={3}>
+                          {subject.description}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </AccordionItem>
+          </View>
+        )}
+
+        {/* Demo Videos Section */}
+        {demoVideos.length > 0 && (
+          <View style={styles.section}>
+            <AccordionItem
+              title={`Demo Videos (${demoVideos.length} Free)`}
+              icon="play-circle"
+              initiallyOpen={true}
+            >
+              {demoVideos.map((video) => {
+                const thumbnailUrl =
+                  video.imageUrl || getYouTubeThumbnail(video.url);
+
+                return (
+                  <TouchableOpacity
+                    key={video.id}
+                    style={styles.videoItem}
+                    onPress={() => handleVideoPress(video)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.videoThumb}>
+                      {thumbnailUrl ? (
+                        <Image
+                          source={{ uri: thumbnailUrl }}
+                          style={styles.thumbImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.thumbPlaceholder}>
+                          <Feather
+                            name="video"
+                            size={20}
+                            color={colors.white}
+                          />
+                        </View>
+                      )}
+                      <View style={styles.playIcon}>
+                        <Feather name="play" size={14} color={colors.white} />
+                      </View>
+                    </View>
+
+                    <View style={styles.videoDetails}>
+                      <Text style={styles.videoTitle} numberOfLines={2}>
+                        {video.title}
+                      </Text>
+                      <View style={styles.videoMeta}>
+                        <View style={styles.freeTag}>
+                          <Text style={styles.freeTagText}>FREE DEMO</Text>
+                        </View>
+                        {video.duration && (
+                          <Text style={styles.durationText}>
+                            {video.duration}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Feather
+                      name="chevron-right"
+                      size={18}
+                      color={colors.textLight}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </AccordionItem>
+          </View>
+        )}
+
+        {/* Videos Loading State */}
+        {videosLoading && (
+          <View style={styles.videosLoadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.videosLoadingText}>Loading videos...</Text>
+          </View>
+        )}
 
         {/* Pricing Section */}
         <View style={styles.section}>
@@ -360,84 +452,136 @@ export default function CourseDetail() {
           <View style={styles.priceCard}>
             <View style={styles.priceRow}>
               <View>
-                {course.originalPrice && (
+                {batchData.batchPrice && (
                   <Text style={styles.originalPrice}>
-                    ₹{course.originalPrice?.toLocaleString()}
+                    ₹{batchData.batchPrice.toLocaleString("en-IN")}
                   </Text>
                 )}
-                <Text style={styles.finalPrice}>
-                  ₹{course.price?.toLocaleString()}
-                </Text>
+                <View style={styles.finalPriceRow}>
+                  <Text style={styles.finalPrice}>
+                    ₹{batchData.batchDiscountPrice.toLocaleString("en-IN")}
+                  </Text>
+                </View>
               </View>
-              {discount > 0 && (
+              {discountPercent > 0 && (
                 <View style={styles.saveBadge}>
                   <Text style={styles.saveText}>
-                    Save ₹{(course.originalPrice - course.price).toLocaleString()}
+                    Save ₹{savings.toLocaleString("en-IN")}
                   </Text>
                 </View>
               )}
             </View>
 
-            {course.oneTimeFee && (
-              <View style={styles.paymentRow}>
-                <View style={styles.paymentInfo}>
-                  <Feather name="zap" size={20} color={colors.primary} />
-                  <Text style={styles.paymentLabel}>One-Time Payment</Text>
-                </View>
-                <Text style={styles.paymentValue}>
-                  ₹{course.oneTimeFee.toLocaleString()}
+            {/* Total with GST */}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Amount (incl. GST)</Text>
+              <Text style={styles.totalValue}>
+                ₹{finalPriceWithGST.toLocaleString("en-IN")}
+              </Text>
+            </View>
+
+            {/* Offer Validity */}
+            {batchData.offerValidityDays > 0 && (
+              <View style={styles.validityBanner}>
+                <Feather name="clock" size={12} color={colors.danger} />
+                <Text style={styles.validityText}>
+                  Offer valid for {batchData.offerValidityDays} days only!
                 </Text>
               </View>
             )}
 
-            {hasInstallments && (
-              <View style={styles.installmentCard}>
-                <View style={styles.installmentHeader}>
-                  <Feather name="credit-card" size={20} color={colors.primary} />
-                  <Text style={styles.installmentTitle}>
-                    Easy Installment Plan
-                  </Text>
-                </View>
+            {/* EMI Options */}
+            {batchData.isEmi &&
+              batchData.emiSchedule &&
+              batchData.emiSchedule.length > 0 && (
+                <View style={styles.emiCard}>
+                  <View style={styles.emiHeader}>
+                    <Feather
+                      name="credit-card"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.emiTitle}>Easy EMI Available</Text>
+                  </View>
 
-                {[
-                  { label: "1st", value: course.firstInstallment },
-                  { label: "2nd", value: course.secondInstallment },
-                  { label: "3rd", value: course.thirdInstallment },
-                  { label: "4th", value: course.fourthInstallment },
-                ]
-                  .filter((i) => i.value)
-                  .map((installment, idx) => (
-                    <View key={idx} style={styles.installmentRow}>
-                      <Text style={styles.installmentLabel}>
-                        {installment.label} Installment
+                  {batchData.emiSchedule.map((emi, idx) => (
+                    <View key={idx} style={styles.emiRow}>
+                      <Text style={styles.emiLabel}>
+                        Month {emi.month} Payment
                       </Text>
-                      <Text style={styles.installmentValue}>
-                        ₹{installment.value.toLocaleString()}
+                      <Text style={styles.emiValue}>
+                        ₹{emi.amount.toLocaleString("en-IN")}
                       </Text>
                     </View>
                   ))}
-              </View>
-            )}
+
+                  <View style={styles.emiTotal}>
+                    <Text style={styles.emiTotalLabel}>Total EMI Amount</Text>
+                    <Text style={styles.emiTotalValue}>
+                      ₹{batchData.emiTotal.toLocaleString("en-IN")}
+                    </Text>
+                  </View>
+                </View>
+              )}
           </View>
         </View>
-    
+
+        {/* Registration Dates */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Important Dates</Text>
+          <View style={styles.datesCard}>
+            <View style={styles.dateRow}>
+              <Feather name="calendar" size={16} color={colors.primary} />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateLabel}>Course Starts</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(batchData.startDate)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.dateRow}>
+              <Feather name="calendar" size={16} color={colors.danger} />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateLabel}>Course Ends</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(batchData.endDate)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.dateRow}>
+              <Feather name="clock" size={16} color={colors.success} />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateLabel}>Registration Closes</Text>
+                <Text style={styles.dateValue}>
+                  {formatDate(batchData.registrationEndDate)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Fixed Enroll Button */}
       <View style={styles.enrollContainer}>
+        <View style={styles.enrollPriceInfo}>
+          <Text style={styles.enrollPriceLabel}>Total Price</Text>
+          <Text style={styles.enrollPriceValue}>
+            ₹{finalPriceWithGST.toLocaleString("en-IN")}
+          </Text>
+        </View>
         <TouchableOpacity
           style={styles.enrollButton}
           onPress={handleEnrollPress}
           activeOpacity={0.9}
         >
           <Text style={styles.enrollButtonText}>Enroll Now</Text>
-          <Feather name="arrow-right" size={22} color={colors.white} />
+          <Feather name="arrow-right" size={20} color={colors.white} />
         </TouchableOpacity>
       </View>
 
-      {/* Video Modal with YouTube Player */}
+      {/* Video Modal */}
       <Modal
         visible={showVideoModal}
         transparent={true}
@@ -456,7 +600,7 @@ export default function CourseDetail() {
                 style={styles.closeButton}
                 onPress={handleCloseVideo}
               >
-                <Feather name="x" size={24} color={colors.white} />
+                <Feather name="x" size={22} color={colors.white} />
               </TouchableOpacity>
             </View>
 
@@ -474,7 +618,7 @@ export default function CourseDetail() {
             </View>
 
             <View style={styles.videoModalFooter}>
-              <Feather name="info" size={18} color={colors.lightGray} />
+              <Feather name="info" size={16} color={colors.textLight} />
               <Text style={styles.videoModalDesc}>
                 Explore the course content through this preview
               </Text>
@@ -484,31 +628,32 @@ export default function CourseDetail() {
       </Modal>
 
       {/* Payment Modal */}
-      <Modal
-        visible={showPaymentModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPaymentModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => {
-            triggerHaptic();
-            setShowPaymentModal(false);
-          }}
+      {batchData.isEmi && (
+        <Modal
+          visible={showPaymentModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowPaymentModal(false)}
         >
           <Pressable
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
+            style={styles.modalOverlay}
+            onPress={() => {
+              triggerHaptic();
+              setShowPaymentModal(false);
+            }}
           >
-            <View style={styles.modalHandle} />
+            <Pressable
+              style={styles.modalContent}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.modalHandle} />
 
-            <Text style={styles.modalTitle}>Choose Payment Option</Text>
-            <Text style={styles.modalSubtitle}>
-              Select your preferred payment method
-            </Text>
+              <Text style={styles.modalTitle}>Choose Payment Option</Text>
+              <Text style={styles.modalSubtitle}>
+                Select your preferred payment method
+              </Text>
 
-            {course.oneTimeFee && (
+              {/* Full Payment Option */}
               <TouchableOpacity
                 style={[
                   styles.paymentOption,
@@ -518,7 +663,7 @@ export default function CourseDetail() {
                 activeOpacity={0.8}
               >
                 <View style={styles.paymentOptionIcon}>
-                  <Feather name="zap" size={24} color={colors.primary} />
+                  <Feather name="zap" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.paymentOptionDetails}>
                   <Text style={styles.paymentOptionTitle}>Full Payment</Text>
@@ -526,7 +671,7 @@ export default function CourseDetail() {
                     Pay once, get instant access
                   </Text>
                   <Text style={styles.paymentOptionPrice}>
-                    ₹{course.oneTimeFee.toLocaleString()}
+                    ₹{finalPriceWithGST.toLocaleString("en-IN")}
                   </Text>
                 </View>
                 <View
@@ -540,180 +685,194 @@ export default function CourseDetail() {
                   )}
                 </View>
               </TouchableOpacity>
-            )}
 
-            {hasInstallments && (
+              {/* EMI Option */}
+              {batchData.isEmi && batchData.emiSchedule?.length > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.paymentOption,
+                    selectedPayment === "emi" && styles.paymentOptionActive,
+                  ]}
+                  onPress={() => handlePaymentSelect("emi")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.paymentOptionIcon}>
+                    <Feather
+                      name="credit-card"
+                      size={22}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.paymentOptionDetails}>
+                    <Text style={styles.paymentOptionTitle}>Easy EMI</Text>
+                    <Text style={styles.paymentOptionDesc}>
+                      Pay in {batchData.emiSchedule.length} monthly installments
+                    </Text>
+                    <Text style={styles.paymentOptionPrice}>
+                      ₹{batchData.emiSchedule[0].amount.toLocaleString("en-IN")}
+                      <Text style={styles.paymentOptionSub}> /month</Text>
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      selectedPayment === "emi" && styles.radioCircleActive,
+                    ]}
+                  >
+                    {selectedPayment === "emi" && (
+                      <View style={styles.radioDot} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[
-                  styles.paymentOption,
-                  selectedPayment === "installment" &&
-                  styles.paymentOptionActive,
+                  styles.confirmButton,
+                  !selectedPayment && styles.confirmButtonDisabled,
                 ]}
-                onPress={() => handlePaymentSelect("installment")}
-                activeOpacity={0.8}
+                onPress={handleConfirmPayment}
+                disabled={!selectedPayment}
+                activeOpacity={0.9}
               >
-                <View style={styles.paymentOptionIcon}>
-                  <Feather name="credit-card" size={24} color={colors.primary} />
-                </View>
-                <View style={styles.paymentOptionDetails}>
-                  <Text style={styles.paymentOptionTitle}>Installments</Text>
-                  <Text style={styles.paymentOptionDesc}>
-                    Pay in easy monthly installments
-                  </Text>
-                  <Text style={styles.paymentOptionPrice}>
-                    ₹{course.firstInstallment?.toLocaleString()}
-                    <Text style={styles.paymentOptionSub}> /first</Text>
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.radioCircle,
-                    selectedPayment === "installment" &&
-                    styles.radioCircleActive,
-                  ]}
-                >
-                  {selectedPayment === "installment" && (
-                    <View style={styles.radioDot} />
-                  )}
-                </View>
+                <Text style={styles.confirmButtonText}>
+                  Continue to Payment
+                </Text>
+                <Feather name="arrow-right" size={18} color={colors.white} />
               </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                !selectedPayment && styles.confirmButtonDisabled,
-              ]}
-              onPress={handleConfirmPayment}
-              disabled={!selectedPayment}
-              activeOpacity={0.9}
-            >
-              <Text style={styles.confirmButtonText}>Continue to Payment</Text>
-              <Feather name="arrow-right" size={20} color={colors.white} />
-            </TouchableOpacity>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
-
-  // Header
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    backgroundColor: colors.lightGray,
-  },
-  headerTitle: {
+  safeArea: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.secondary,
-    textAlign: "center",
-    marginHorizontal: 12,
+    backgroundColor: colors.background,
   },
-  iconButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    backgroundColor: colors.lightGray,
-  },
-
-  container: { flex: 1, backgroundColor: colors.white },
-  scrollContent: { paddingBottom: 100 },
-
-  // Loading & Error
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
   },
   loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
     marginTop: 12,
-    fontSize: 13,
-    color: colors.darkGray,
     fontWeight: "500",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
   },
   errorTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: colors.secondary,
+    fontWeight: "600",
+    color: colors.text,
     marginTop: 16,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   errorText: {
     fontSize: 13,
-    color: colors.darkGray,
-    marginBottom: 20,
+    color: colors.textSecondary,
     textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
   },
   retryButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 8,
+    gap: 8,
   },
   retryText: {
+    color: colors.white,
     fontSize: 14,
     fontWeight: "600",
-    color: colors.white,
   },
-
-  // Hero
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    textAlign: "center",
+    marginHorizontal: 16,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   hero: {
-    width: "100%",
-    height: width,
     position: "relative",
-    backgroundColor: colors.lightGray,
+    height: 220,
+    marginHorizontal: 6,
+    marginTop: 1,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   heroImage: {
     width: "100%",
     height: "100%",
   },
-  heroBadge: {
+  statusBadge: {
     position: "absolute",
     top: 12,
     left: 12,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.success,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 6,
+    gap: 4,
   },
-  heroBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.white,
+  },
+  statusText: {
     color: colors.white,
-    textTransform: "uppercase",
+    fontSize: 10,
+    fontWeight: "600",
   },
   discountTag: {
     position: "absolute",
@@ -721,77 +880,106 @@ const styles = StyleSheet.create({
     right: 12,
     backgroundColor: colors.primary,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   discountTagText: {
-    fontSize: 11,
-    fontWeight: "800",
     color: colors.white,
+    fontSize: 12,
+    fontWeight: "700",
   },
-
-  // Info Card
   infoCard: {
-    backgroundColor: colors.white,
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   courseTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: colors.secondary,
-    marginBottom: 6,
-    lineHeight: 24,
+    color: colors.text,
+    marginBottom: 8,
+    lineHeight: 28,
+  },
+  programBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#FEF2F2",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 12,
+    gap: 4,
+  },
+  programName: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: "600",
   },
   courseSubtitle: {
-    fontSize: 13,
-    color: colors.darkGray,
-    lineHeight: 18,
-    marginBottom: 14,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    flex: 1,
   },
   statText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.darkGray,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "500",
   },
   statDivider: {
     width: 1,
     height: 12,
     backgroundColor: colors.border,
-    marginHorizontal: 10,
+    marginHorizontal: 8,
   },
-  modeBadge: {
-    alignSelf: "flex-start",
+  categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
   },
-  onlineBadge: { backgroundColor: colors.softRed },
-  offlineBadge: { backgroundColor: colors.secondary },
-  modeText: {
-    fontSize: 10,
-    fontWeight: "700",
+  onlineBadge: {
+    backgroundColor: colors.success,
+  },
+  offlineBadge: {
+    backgroundColor: "#F59E0B",
+  },
+  recordedBadge: {
+    backgroundColor: colors.primary,
+  },
+  categoryText: {
     color: colors.white,
+    fontSize: 11,
+    fontWeight: "600",
   },
-
-  // Section
   section: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    marginHorizontal: 16,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 12,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -799,56 +987,116 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.secondary,
-  },
   videoCountBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.lightGray,
+    backgroundColor: "#F0FDF4",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
+    gap: 4,
   },
   videoCountText: {
     fontSize: 10,
-    fontWeight: "700",
     color: colors.success,
+    fontWeight: "600",
   },
-
-  // Fallback Notice
-  fallbackNotice: {
+  descriptionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  descriptionText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  subjectsGrid: {
+    gap: 12,
+  },
+  subjectCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  subjectIcon: {
+    width: 32,
+    height: 32,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  subjectInfo: {
+    flex: 1,
+  },
+  subjectName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 4,
+  },
+  subjectDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  accordionContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    // marginBottom: 12,
+  },
+  accordionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FFF3F3",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#FFE0E0",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    backgroundColor: "#FEF2F2",
   },
+  accordionHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  accordionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  accordionContent: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
+  },
+
   videoItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: 10,
-    marginBottom: 10,
-    overflow: "hidden",
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 10,
+    gap: 12,
   },
   videoThumb: {
-    width: 100,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: colors.secondary,
     position: "relative",
-    marginRight: 12,
+    width: 60,
+    height: 45,
+    borderRadius: 6,
     overflow: "hidden",
   },
   thumbImage: {
@@ -858,35 +1106,21 @@ const styles = StyleSheet.create({
   thumbPlaceholder: {
     width: "100%",
     height: "100%",
-    alignItems: "center",
+    backgroundColor: colors.textLight,
     justifyContent: "center",
-    backgroundColor: colors.darkGray,
+    alignItems: "center",
   },
   playIcon: {
     position: "absolute",
     top: "50%",
     left: "50%",
-    transform: [{ translateX: -14 }, { translateY: -14 }],
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: "center",
+    transform: [{ translateX: -10 }, { translateY: -10 }],
+    width: 20,
+    height: 20,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 10,
     justifyContent: "center",
-  },
-  durationTag: {
-    position: "absolute",
-    bottom: 4,
-    right: 4,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  durationText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: colors.white,
+    alignItems: "center",
   },
   videoDetails: {
     flex: 1,
@@ -894,490 +1128,443 @@ const styles = StyleSheet.create({
   videoTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.secondary,
-    lineHeight: 18,
+    color: colors.text,
     marginBottom: 6,
+    lineHeight: 18,
   },
-  videoFooter: {
+  videoMeta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
   },
   freeTag: {
-    backgroundColor: colors.lightRed2,
+    backgroundColor: "#F0FDF4",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   freeTagText: {
     fontSize: 9,
-    fontWeight: "700",
-    color: colors.softRed,
-  },
-
-  // Locked Card
-  lockedCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: colors.lightGray,
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  lockedText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.darkGray,
-  },
-  fallbackText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-
-  // Video Card
-  videoCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  videoThumbnail: {
-    width: "100%",
-    height: 200,
-    backgroundColor: colors.secondary,
-    position: "relative",
-  },
-  thumbnailImage: {
-    width: "100%",
-    height: "100%",
-  },
-  thumbnailPlaceholder: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.darkGray,
-  },
-  playButton: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: [{ translateX: -30 }, { translateY: -30 }],
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  durationBadge: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  durationText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.white,
-  },
-  videoContent: {
-    padding: 16,
-  },
-  videoHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  videoTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.secondary,
-    lineHeight: 22,
-    marginRight: 8,
-  },
-  freeBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#E8F8F0",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  freeText: {
-    fontSize: 11,
-    fontWeight: "700",
     color: colors.success,
+    fontWeight: "600",
   },
-
-  // Locked Card
-  lockedCard: {
-    backgroundColor: colors.lightGray,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-  },
-  lockedContent: {
+  sourceTag: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  sourceText: {
+    fontSize: 8,
+    color: colors.textLight,
+    fontWeight: "500",
+  },
+  lockedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
   },
   lockedInfo: {
     flex: 1,
   },
   lockedTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.secondary,
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
     marginBottom: 4,
   },
   lockedText: {
-    fontSize: 13,
-    color: colors.darkGray,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
-
-  // Price Card
+  videosLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  videosLoadingText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   priceCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    backgroundColor: colors.background,
+    borderRadius: 12,
     padding: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    marginTop: 16,
   },
   priceRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 20,
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    alignItems: "flex-start",
+    marginBottom: 16,
   },
   originalPrice: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: colors.darkGray,
+    fontSize: 14,
+    color: colors.textLight,
     textDecorationLine: "line-through",
     marginBottom: 4,
   },
+  finalPriceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
   finalPrice: {
-    fontSize: 36,
-    fontWeight: "900",
+    fontSize: 24,
+    fontWeight: "700",
     color: colors.primary,
+  },
+  gstText: {
+    fontSize: 11,
+    color: colors.textSecondary,
   },
   saveBadge: {
     backgroundColor: colors.success,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   saveText: {
-    fontSize: 13,
-    fontWeight: "800",
+    fontSize: 11,
     color: colors.white,
-  },
-  paymentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  paymentInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  paymentLabel: {
-    fontSize: 15,
     fontWeight: "600",
-    color: colors.secondary,
   },
-  paymentValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: colors.secondary,
-  },
-
-  // Installment Card
-  installmentCard: {
-    backgroundColor: colors.lightGray,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-  },
-  installmentHeader: {
+  totalRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 10,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  installmentTitle: {
-    fontSize: 15,
+  totalLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  totalValue: {
+    fontSize: 18,
     fontWeight: "700",
     color: colors.secondary,
   },
-  installmentRow: {
+  validityBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+    marginBottom: 16,
+  },
+  validityText: {
+    fontSize: 11,
+    color: colors.danger,
+    fontWeight: "500",
+  },
+  emiCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emiHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  emiTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  emiRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 6,
   },
-  installmentLabel: {
+  emiLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  emiValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  emiTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  emiTotalLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  emiTotalValue: {
     fontSize: 14,
-    fontWeight: "500",
-    color: colors.darkGray,
+    fontWeight: "700",
+    color: colors.primary,
   },
-  installmentValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.secondary,
+  datesCard: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 16,
   },
-
-  // Enroll Button
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dateInfo: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  dateValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
   enrollContainer: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.white,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  enrollPriceInfo: {
+    flex: 1,
+  },
+  enrollPriceLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  enrollPriceValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.primary,
   },
   enrollButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
     backgroundColor: colors.primary,
-    paddingVertical: 18,
-    borderRadius: 14,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+    minWidth: 140,
+    justifyContent: "center",
   },
   enrollButtonText: {
-    fontSize: 18,
-    fontWeight: "800",
     color: colors.white,
+    fontSize: 14,
+    fontWeight: "600",
   },
-
-  // Video Modal
   videoModalOverlay: {
     flex: 1,
-    backgroundColor: colors.secondary,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
   },
   videoModalContainer: {
     flex: 1,
+    justifyContent: "center",
   },
   videoModalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: "rgba(0,0,0,0.9)",
+    paddingVertical: 12,
+    gap: 12,
   },
   videoModalTitleContainer: {
     flex: 1,
-    marginRight: 12,
   },
   videoModalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
     color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
   },
   closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
+    width: 40,
+    height: 40,
     justifyContent: "center",
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   videoPlayerWrapper: {
     flex: 1,
-    backgroundColor: colors.secondary,
     justifyContent: "center",
     alignItems: "center",
   },
-  videoPlayer: {
-    width: "100%",
-    height: width * 0.5625,
+  youtubePlayer: {
+    borderRadius: 8,
   },
   videoModalFooter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 8,
   },
   videoModalDesc: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.lightGray,
-    lineHeight: 20,
+    color: colors.textLight,
+    fontSize: 12,
   },
-
-  // Payment Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 40,
+    paddingBottom: 34,
+    minHeight: 400,
   },
   modalHandle: {
-    width: 44,
-    height: 5,
+    width: 40,
+    height: 4,
     backgroundColor: colors.border,
-    borderRadius: 3,
+    borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: colors.secondary,
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 6,
   },
   modalSubtitle: {
-    fontSize: 15,
-    color: colors.darkGray,
-    marginBottom: 28,
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 24,
+    lineHeight: 18,
   },
-
-  // Payment Options
   paymentOption: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.lightGray,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 2,
-    borderColor: "transparent",
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
   },
   paymentOptionActive: {
-    backgroundColor: "#FFF3F3",
     borderColor: colors.primary,
+    backgroundColor: "#FEF2F2",
   },
   paymentOptionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    alignItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#FEF2F2",
     justifyContent: "center",
-    marginRight: 14,
+    alignItems: "center",
   },
   paymentOptionDetails: {
     flex: 1,
   },
   paymentOptionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: colors.secondary,
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
     marginBottom: 4,
   },
   paymentOptionDesc: {
-    fontSize: 13,
-    color: colors.darkGray,
-    marginBottom: 8,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+    lineHeight: 16,
   },
   paymentOptionPrice: {
-    fontSize: 22,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.primary,
   },
   paymentOptionSub: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.darkGray,
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.textSecondary,
   },
   radioCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.border,
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.white,
+    alignItems: "center",
   },
   radioCircleActive: {
     borderColor: colors.primary,
   },
   radioDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
   },
-
-  // Confirm Button
   confirmButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
     backgroundColor: colors.primary,
-    paddingVertical: 18,
-    borderRadius: 14,
+    borderRadius: 12,
+    paddingVertical: 16,
     marginTop: 24,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: 8,
   },
   confirmButtonDisabled: {
-    backgroundColor: colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: colors.textLight,
   },
   confirmButtonText: {
-    fontSize: 17,
-    fontWeight: "800",
     color: colors.white,
+    fontSize: 15,
+    fontWeight: "600",
   },
-}); 
+});

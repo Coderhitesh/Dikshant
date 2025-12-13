@@ -49,9 +49,6 @@ export default function AllScholarship() {
           <Text style={styles.titleLine2}>& Scholarship Programme</Text>
         </View>
 
-        {/* Hindi Text */}
-        <Text style={styles.hindiText}>भारत सरकार</Text>
-        <Text style={styles.hindiSubtext}>एवं गैर सरकारी संगठनों द्वारा वितपोषित</Text>
 
         {/* Registration Info */}
         <View style={styles.registrationInfo}>

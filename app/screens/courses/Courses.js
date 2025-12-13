@@ -19,6 +19,7 @@ const { width } = Dimensions.get("window");
 const CARD_MARGIN = 12;
 const RECORDED_CARD_WIDTH = width * 0.72;
 
+const CARD_WIDTH = width * 0.72;
 // === Horizontal Section Component ===
 const HorizontalSection = ({ 
   title, 
@@ -38,6 +39,7 @@ const HorizontalSection = ({
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
+          <Text style={styles.loadingText}>Loading courses...</Text>
         </View>
       </View>
     );
@@ -50,8 +52,9 @@ const HorizontalSection = ({
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <View style={styles.errorContainer}>
-          <Feather name="alert-circle" size={24} color="#ef4444" />
+          <Feather name="alert-circle" size={32} color="#ef4444" />
           <Text style={styles.errorText}>Failed to load courses</Text>
+          <Text style={styles.errorSubtext}>Please try again later</Text>
         </View>
       </View>
     );
@@ -64,8 +67,9 @@ const HorizontalSection = ({
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <Feather name="inbox" size={32} color="#cbd5e1" />
+          <Feather name="inbox" size={40} color="#cbd5e1" />
           <Text style={styles.emptyText}>No courses available</Text>
+          <Text style={styles.emptySubtext}>Check back soon for updates</Text>
         </View>
       </View>
     );
@@ -75,7 +79,7 @@ const HorizontalSection = ({
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        {onSeeAll && (
+        {onSeeAll && data.length > 0 && (
           <TouchableOpacity 
             style={styles.seeAllButton}
             onPress={onSeeAll}
@@ -96,24 +100,44 @@ const HorizontalSection = ({
         snapToInterval={cardWidth + CARD_MARGIN}
         snapToAlignment="start"
         decelerationRate="fast"
+        initialNumToRender={3}
+        maxToRenderPerBatch={5}
+        windowSize={5}
       />
     </View>
   );
 };
 
-// === Course Card Component ===
-const CourseCard = ({ item: course, navigation }) => {
-  const imageUrl = course.image?.url || course.image;
+const CourseCard = ({ item: batch, navigation }) => {
+  const imageUrl = batch.imageUrl;
+  const startDate = batch.startDate ? new Date(batch.startDate) : null;
+  const endDate = batch.endDate ? new Date(batch.endDate) : null;
+  
+  // Calculate discount percentage
+  const discountPercent = batch.batchPrice && batch.batchDiscountPrice
+    ? Math.round(((batch.batchPrice - batch.batchDiscountPrice) / batch.batchPrice) * 100)
+    : 0;
+
+  // Format dates
+  const formatDate = (date) => {
+    if (!date) return null;
+    return date.toLocaleDateString('en-IN', { 
+      day: 'numeric', 
+      month: 'short',
+      year: 'numeric'
+    });
+  };
 
   const handlePress = () => {
     navigation?.navigate?.("CourseDetail", { 
-      courseId: course._id || course.id 
+      courseId: batch.id,
+      batchData: batch
     });
   };
 
   return (
     <TouchableOpacity
-      style={[styles.courseCard, { width: RECORDED_CARD_WIDTH }]}
+      style={[styles.courseCard, { width: CARD_WIDTH }]}
       activeOpacity={0.9}
       onPress={handlePress}
     >
@@ -130,59 +154,80 @@ const CourseCard = ({ item: course, navigation }) => {
           </View>
         </View>
         
-        {/* Badge */}
-        {course.badge && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{course.badge}</Text>
+        {/* Discount Badge */}
+        {discountPercent > 0 && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>{discountPercent}% OFF</Text>
           </View>
         )}
+
       </View>
 
       {/* Content Section */}
       <View style={styles.cardContent}>
         <Text style={styles.courseTitle} numberOfLines={2}>
-          {course.title}
+          {batch.name}
         </Text>
+
+        {/* Program Name */}
+        {batch.program?.name && (
+          <Text style={styles.programName} numberOfLines={1}>
+            {batch.program.name}
+          </Text>
+        )}
 
         {/* Meta Information */}
         <View style={styles.metaContainer}>
-          {course.lectures && (
+          {startDate && (
             <View style={styles.metaItem}>
-              <Feather name="video" size={12} color="#64748b" />
-              <Text style={styles.metaText}>{course.lectures} lectures</Text>
+              <Feather name="calendar" size={12} color="#64748b" />
+              <Text style={styles.metaText}>{formatDate(startDate)}</Text>
             </View>
           )}
-          {course.duration && (
+          {batch.subjects && batch.subjects.length > 0 && (
             <View style={styles.metaItem}>
-              <Feather name="clock" size={12} color="#64748b" />
-              <Text style={styles.metaText}>{course.duration}</Text>
+              <Feather name="book-open" size={12} color="#64748b" />
+              <Text style={styles.metaText}>{batch.subjects.length} subjects</Text>
             </View>
           )}
         </View>
 
         {/* Footer */}
         <View style={styles.cardFooter}>
-          {course.courseMode && (
+          <View style={styles.priceContainer}>
+            {batch.batchDiscountPrice && batch.batchDiscountPrice < batch.batchPrice ? (
+              <>
+                <Text style={styles.originalPrice}>₹{batch.batchPrice.toLocaleString('en-IN')}</Text>
+                <Text style={styles.discountPrice}>₹{batch.batchDiscountPrice.toLocaleString('en-IN')}</Text>
+              </>
+            ) : (
+              <Text style={styles.price}>₹{batch.batchPrice.toLocaleString('en-IN')}</Text>
+            )}
+          </View>
+
+          {batch.category && (
             <View style={[
-              styles.modeTag,
-              course.courseMode === "online" && styles.modeTagOnline,
-              course.courseMode === "offline" && styles.modeTagOffline,
+              styles.categoryTag,
+              batch.category === "online" && styles.categoryTagOnline,
+              batch.category === "offline" && styles.categoryTagOffline,
+              batch.category === "recorded" && styles.categoryTagRecorded,
             ]}>
               <Text style={[
-                styles.modeTagText,
-                course.courseMode === "online" && styles.modeTagTextOnline,
-                course.courseMode === "offline" && styles.modeTagTextOffline,
+                styles.categoryTagText,
+                batch.category === "online" && styles.categoryTagTextOnline,
+                batch.category === "offline" && styles.categoryTagTextOffline,
+                batch.category === "recorded" && styles.categoryTagTextRecorded,
               ]}>
-                {course.courseMode.toUpperCase()}
+                {batch.category.toUpperCase()}
               </Text>
             </View>
           )}
-          <Text style={styles.price}>₹{course.price?.toLocaleString()}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 };
+
 
 // === Main Component ===
 export default function Course() {
@@ -190,7 +235,7 @@ export default function Course() {
 
   // Fetch courses from API
   const { data: coursesResponse, error, isLoading } = useSWR(
-    "/courses",
+    "/batchs",
     fetcher,
     {
       revalidateOnFocus: false,
@@ -198,12 +243,20 @@ export default function Course() {
     }
   );
 
-  const courses = coursesResponse || [];
+
+  const courses = coursesResponse?.items || [];
 
   // Separate courses by type
-  const liveCourses = courses.filter(c => c.courseMode === "online").slice(0, 6);
-  const offlineCourses = courses.filter(c => c.courseMode === "offline").slice(0, 6);
-  const recordedCourses = courses.filter(c => c.courseMode === "recorded").slice(0, 6);
+// Sort courses by createdAt (newest first)
+const sortedCourses = [...courses].sort(
+  (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+);
+
+// Filter categories + take first 6
+const liveCourses = sortedCourses.filter(c => c.category === "online").slice(0, 6);
+const offlineCourses = sortedCourses.filter(c => c.category === "offline").slice(0, 6);
+const recordedCourses = sortedCourses.filter(c => c.category === "recorded").slice(0, 6);
+
 
   // Handle See All navigation
   const handleSeeAll = (courseType) => {
@@ -221,48 +274,83 @@ export default function Course() {
         title="Live Courses"
         data={liveCourses}
         renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
-        keyExtractor={(item) => `live-${item._id || item.id}`}
-        cardWidth={RECORDED_CARD_WIDTH}
+        keyExtractor={(item) => `online-${item.id}`}
+        cardWidth={CARD_WIDTH}
         isLoading={isLoading}
         error={error}
-        onSeeAll={() => handleSeeAll("Courses")}
+        onSeeAll={() => handleSeeAll("Online")}
       />
 
-      {/* Offline Courses Section */}
-      <HorizontalSection
-        title="Offline Courses"
-        data={offlineCourses}
-        renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
-        keyExtractor={(item) => `offline-${item._id || item.id}`}
-        cardWidth={RECORDED_CARD_WIDTH}
-        isLoading={isLoading}
-        error={error}
-        onSeeAll={() => handleSeeAll("Courses")}
-      />
 
       {/* Recorded Courses Section */}
       <HorizontalSection
         title="Recorded Courses"
-        data={offlineCourses}
+        data={recordedCourses}
         renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
-        keyExtractor={(item) => `recorded-${item._id || item.id}`}
-        cardWidth={RECORDED_CARD_WIDTH}
+        keyExtractor={(item) => `recorded-${item.id}`}
+        cardWidth={CARD_WIDTH}
         isLoading={isLoading}
         error={error}
-        onSeeAll={() => handleSeeAll("Courses")}
+        onSeeAll={() => handleSeeAll("Recorded")}
       />
+       <HorizontalSection
+        title="Offline Courses"
+        data={offlineCourses}
+        renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
+        keyExtractor={(item) => `offline-${item.id}`}
+        cardWidth={CARD_WIDTH}
+        isLoading={isLoading}
+        error={error}
+        onSeeAll={() => handleSeeAll("Offline")}
+      />
+
+
+  
     </ScrollView>
   );
 }
-
-// === Styles ===
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
   },
   scrollContent: {
-    paddingBottom: 14,
+    paddingBottom: 24,
+  },
+  
+  // Stats Container
+  statsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: "#e2e8f0",
   },
   
   // Section Styles
@@ -303,7 +391,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   
-  // Loading/Error States
+  // Loading State
   loadingContainer: {
     height: 240,
     justifyContent: "center",
@@ -311,38 +399,93 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     marginHorizontal: 16,
     borderRadius: 12,
+    gap: 12,
   },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#64748b",
+  },
+  
+  // Error State
   errorContainer: {
     height: 240,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
     backgroundColor: "#ffffff",
     marginHorizontal: 16,
     borderRadius: 12,
   },
   errorText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ef4444",
+  },
+  errorSubtext: {
+    fontSize: 13,
     color: "#64748b",
   },
+  
+  // Empty State
   emptyContainer: {
     height: 240,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
     backgroundColor: "#ffffff",
     marginHorizontal: 16,
     borderRadius: 12,
   },
   emptyText: {
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  emptySubtext: {
+    fontSize: 13,
     color: "#94a3b8",
+  },
+
+  // Global Empty State
+  globalEmptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 80,
+    gap: 12,
+  },
+  globalEmptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginTop: 16,
+  },
+  globalEmptyText: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  refreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  refreshButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
   },
 
   // Course Card Styles
   courseCard: {
+    marginBottom:12,
     marginRight: CARD_MARGIN,
     borderRadius: 16,
     backgroundColor: "#ffffff",
@@ -351,7 +494,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 1,
+    elevation: .69,
   },
   
   // Image Section
@@ -363,6 +506,7 @@ const styles = StyleSheet.create({
   courseImage: {
     width: "100%",
     height: "100%",
+    backgroundColor: "#e2e8f0",
   },
   imageOverlay: {
     position: "absolute",
@@ -382,34 +526,63 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  badge: {
+  discountBadge: {
     position: "absolute",
     top: 12,
     left: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#ef4444",
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 6,
   },
-  badgeText: {
+  discountText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#ffffff",
+    letterSpacing: 0.5,
+  },
+  statusBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(34, 197, 94, 0.95)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#ffffff",
+  },
+  statusText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#3b82f6",
-    textTransform: "uppercase",
+    color: "#ffffff",
     letterSpacing: 0.5,
   },
   
   // Content Section
   cardContent: {
-    padding: 5,
+    padding: 12,
   },
   courseTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: "#0f172a",
     lineHeight: 20,
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: -0.3,
+  },
+  programName: {
+    fontSize: 12,
+    color: "#3b82f6",
+    fontWeight: "600",
+    marginBottom: 8,
   },
   
   // Meta Information
@@ -417,6 +590,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginBottom: 12,
+    flexWrap: "wrap",
   },
   metaItem: {
     flexDirection: "row",
@@ -435,32 +609,55 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  modeTag: {
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  price: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: -0.3,
+  },
+  originalPrice: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#94a3b8",
+    textDecorationLine: "line-through",
+  },
+  discountPrice: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#22c55e",
+    letterSpacing: -0.3,
+  },
+  categoryTag: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  modeTagOnline: {
+  categoryTagOnline: {
     backgroundColor: "#dbeafe",
   },
-  modeTagOffline: {
+  categoryTagOffline: {
     backgroundColor: "#fef3c7",
   },
-  modeTagText: {
+  categoryTagRecorded: {
+    backgroundColor: "#f3e8ff",
+  },
+  categoryTagText: {
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
-  modeTagTextOnline: {
+  categoryTagTextOnline: {
     color: "#1e40af",
   },
-  modeTagTextOffline: {
+  categoryTagTextOffline: {
     color: "#92400e",
   },
-  price: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0f172a",
-    letterSpacing: -0.3,
+  categoryTagTextRecorded: {
+    color: "#6b21a8",
   },
 });

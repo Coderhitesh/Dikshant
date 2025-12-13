@@ -84,6 +84,7 @@ export default function Login({ navigation }) {
 
       setPhoneError("");
 
+      
       // Call OTP API
       const res = await login(phone);
       if (res.message) {

@@ -1,1031 +1,833 @@
-import React, { useState } from 'react';
+// screens/Profile/index.js
+import React, { useEffect, useState } from "react";
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    Image,
-    TouchableOpacity,
-    Dimensions,
-    ActivityIndicator,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LineChart, ProgressChart } from 'react-native-chart-kit';
-import Layout from '../../components/layout';
-import { colors } from '../../constant/color';
-import * as Haptics from 'expo-haptics';
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  ActivityIndicator,
+  Share,
+  Platform,
+  Alert,
+} from "react-native";
 
-const { width } = Dimensions.get('window');
+import { Feather } from "@expo/vector-icons";
+import Layout from "../../components/layout";
+import * as Haptics from "expo-haptics";
+import { useAuthStore } from "../../stores/auth.store";
+import useSWR from "swr";
+import { fetcher } from "../../constant/fetcher";
+import { useNavigation } from "@react-navigation/native";
 
-// Mock student data - Replace with actual API data
-const STUDENT_DATA = {
-    name: 'Rahul Sharma',
-    email: 'rahul.sharma@example.com',
-    phone: '+91 98765 43210',
-    enrollmentId: 'DIK2024-1234',
-    avatar: 'https://i.pravatar.cc/300?img=12',
-    joinedDate: 'January 15, 2024',
-    batchName: 'UPSC 2025 Batch',
-    batchProgress: 68,
-    totalCourses: 5,
-    completedCourses: 3,
-    inProgressCourses: 2,
-    totalLectures: 450,
-    completedLectures: 306,
-    totalHours: 180,
-    completedHours: 122,
-    currentStreak: 12,
-    longestStreak: 28,
-    rank: 45,
-    totalStudents: 320,
-};
+const { width } = Dimensions.get("window");
 
-
-const PURCHASED_COURSES = [
-    {
-        id: '1',
-        title: 'समाजशास्त्र (वैकल्पिक विषय) Foundation Course',
-        progress: 85,
-        totalLectures: 200,
-        completedLectures: 170,
-        thumbnail: 'https://dikshantiasnew-web.s3.ap-south-1.amazonaws.com/courses/1761373726090-9e946c97-4f7a-4fd3-b338-785711b4aefe-WhatsApp_Image_2025-10-25_at_11.16.20_(3).jpeg',
-        status: 'in-progress',
-    },
-    {
-        id: '2',
-        title: 'General Studies Paper I',
-        progress: 100,
-        totalLectures: 150,
-        completedLectures: 150,
-        thumbnail: 'https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fcourses%2F1763128297137-680bc855-5d82-43b8-b4e0-a355596f3cfc-GS-01_(1).jpg&w=1920&q=75',
-        status: 'completed',
-    },
-    {
-        id: '3',
-        title: 'Essay Writing Masterclass',
-        progress: 45,
-        totalLectures: 50,
-        completedLectures: 23,
-        thumbnail: 'https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fcourses%2F1757670918009-Complete-UPSC-Course.webp&w=1920&q=75',
-        status: 'in-progress',
-    },
-    {
-        id: '4',
-        title: 'Current Affairs 2024',
-        progress: 100,
-        totalLectures: 80,
-        completedLectures: 80,
-        thumbnail: 'https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fcourses%2F1759320543988-6c8941be-73a3-486b-9d9a-399d232a4c9c-WhatsApp_Image_2025-10-01_at_5.28.29_PM.jpeg&w=3840&q=75',
-        status: 'completed',
-    },
-    {
-        id: '5',
-        title: 'Ethics & Integrity',
-        progress: 30,
-        totalLectures: 100,
-        completedLectures: 30,
-        thumbnail: 'https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fcourses%2F1761373388489-2606b9e6-3eb9-4375-af27-1acf76a7b794-WhatsApp_Image_2025-10-25_at_11.16.20_(5).jpeg&w=3840&q=75',
-        status: 'in-progress',
-    },
+const menuOptions = [
+  {
+    label: "Notifications",
+    icon: "bell",
+    screen: "Notifications",
+  },
+  {
+    label: "Payment History",
+    icon: "credit-card",
+    screen: "PaymentHistory",
+  },
+  {
+    label: "Downloads",
+    icon: "download",
+    screen: "Downloads",
+  },
+  {
+    label: "Terms & Conditions",
+    icon: "file-text",
+    screen: "TermsConditions",
+  },
+  {
+    label: "Privacy Policy",
+    icon: "shield",
+    screen: "PrivacyPolicy",
+  },
 ];
 
+const quickActions = [
+  {
+    label: "Settings",
+    icon: "settings",
+    bg: "#DBEAFE",
+    color: "#3B82F6",
+    screen: "Settings",
+  },
+  {
+    label: "Share App",
+    icon: "share-2",
+    bg: "#E0E7FF",
+    color: "#6366F1",
+    screen: "ShareApp",
+  },
+  {
+    label: "Rate Us",
+    icon: "star",
+    bg: "#FEF3C7",
+    color: "#F59E0B",
+    screen: "RateUs",
+  },
+  {
+    label: "Scholarships",
+    icon: "award",
+    bg: "#DCFCE7",
+    color: "#22C55E",
+    screen: "apply-sch",
+  },
+  {
+    label: "Offers",
+    icon: "gift",
+    bg: "#FEE2E2",
+    color: "#EF4444",
+    screen: "Offers",
+  },
+  {
+    label: "Help & Support",
+    icon: "help-circle",
+    bg: "#FCE7F3",
+    color: "#EC4899",
+    screen: "HelpSupport",
+  },
+];
 
-
-
-// Weekly progress data
-const WEEKLY_PROGRESS = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-        {
-            data: [2.5, 3, 1.5, 4, 3.5, 5, 4.5],
-            strokeWidth: 2,
-        },
-    ],
+const colors = {
+  primary: "#DC2626",
+  secondary: "#1F2937",
+  background: "#FFFFFF",
+  surface: "#FAFAFA",
+  text: "#111827",
+  textSecondary: "#6B7280",
+  textLight: "#9CA3AF",
+  success: "#10B981",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  border: "#E5E7EB",
+  lightRed: "#FEF2F2",
+  lightGreen: "#F0FDF4",
+  lightBlue: "#EFF6FF",
+  white: "#FFFFFF",
 };
 
 export default function Profile() {
-    const [loading, setLoading] = useState(false);
-    const [selectedTab, setSelectedTab] = useState('all'); // all, in-progress, completed
+  const { user } = useAuthStore();
+  const [selectedTab, setSelectedTab] = useState("all");
+  const navigation = useNavigation();
+  const {
+    data: ordersData,
+    error,
+    isLoading,
+  } = useSWR(user?.id ? `/Orders/user/${user.id}` : null, fetcher, {
+    revalidateOnFocus: false,
+  });
 
-    const triggerHaptic = () => {
-        try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } catch (e) { }
-    };
+  const myCourses = ordersData || [];
 
-    const filteredCourses = PURCHASED_COURSES.filter((course) => {
-        if (selectedTab === 'all') return true;
-        return course.status === selectedTab;
-    });
-
-    const overallProgress = Math.round(
-        (STUDENT_DATA.completedLectures / STUDENT_DATA.totalLectures) * 100
-    );
-
-    const chartConfig = {
-        backgroundColor: '#ffffff',
-        backgroundGradientFrom: '#ffffff',
-        backgroundGradientTo: '#ffffff',
-        decimalPlaces: 1,
-        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-        labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-        style: {
-            borderRadius: 16,
-        },
-        propsForDots: {
-            r: '6',
-            strokeWidth: '2',
-            stroke: '#EF4444',
-        },
-        propsForBackgroundLines: {
-            strokeDasharray: '',
-            stroke: '#E5E7EB',
-            strokeWidth: 1,
-        },
-    };
-
-    const progressData = {
-        labels: ['Completed'],
-        data: [overallProgress / 100],
-        colors: ['#EF4444'],
-    };
-
-    if (loading) {
-        return (
-            <Layout isHeaderShow={false}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#EF4444" />
-                    <Text style={styles.loadingText}>Loading profile...</Text>
-                </View>
-            </Layout>
-        );
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Start Soon":
+        return { bg: "#FEF3C7", text: "#92400E" };
+      case "In Progress":
+        return { bg: "#DBEAFE", text: "#1E40AF" };
+      case "Partially Complete":
+        return { bg: "#E0E7FF", text: "#4338CA" };
+      case "Completed":
+        return { bg: "#D1FAE5", text: "#065F46" };
+      default:
+        return { bg: "#F3F4F6", text: "#374151" };
     }
+  };
 
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const filteredCourses = myCourses.filter((order) => {
+    if (selectedTab === "all") return true;
+    if (selectedTab === "in-progress")
+      return order.batch?.c_status === "In Progress";
+    if (selectedTab === "completed")
+      return order.batch?.c_status === "Completed";
+    return true;
+  });
+
+  const triggerHaptic = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+  };
+
+  const redirectCourse = (id) => {
+    try {
+      navigation.navigate("my-course", { unlocked: true, courseId: id });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+  };
+
+  if (isLoading) {
     return (
-        <Layout isHeaderShow={false}>
-            <ScrollView
-                style={styles.container}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
-                {/* Header Card */}
-                <View style={styles.headerCard}>
-                    <View style={styles.profileHeader}>
-                        <Image
-                            source={{ uri: STUDENT_DATA.avatar }}
-                            style={styles.avatar}
-                        />
-                        <View style={styles.headerInfo}>
-                            <Text style={styles.studentName}>{STUDENT_DATA.name}</Text>
-                            <Text style={styles.enrollmentId}>
-                                ID: {STUDENT_DATA.enrollmentId}
-                            </Text>
-                            <View style={styles.batchBadge}>
-                                <Feather name="users" size={12} color="#000" />
-                                <Text style={styles.batchText}>{STUDENT_DATA.batchName}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.contactInfo}>
-                        <View style={styles.contactRow}>
-                            <Feather name="mail" size={14} color="#666" />
-                            <Text style={styles.contactText}>{STUDENT_DATA.email}</Text>
-                        </View>
-                        <View style={styles.contactRow}>
-                            <Feather name="phone" size={14} color="#666" />
-                            <Text style={styles.contactText}>{STUDENT_DATA.phone}</Text>
-                        </View>
-                        <View style={styles.contactRow}>
-                            <Feather name="calendar" size={14} color="#666" />
-                            <Text style={styles.contactText}>
-                                Joined {STUDENT_DATA.joinedDate}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Batch Progress Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Batch Progress</Text>
-                    <View style={styles.batchProgressCard}>
-                        <View style={styles.progressHeader}>
-                            <Text style={styles.batchProgressTitle}>
-                                {STUDENT_DATA.batchName}
-                            </Text>
-                            <Text style={styles.progressPercentage}>
-                                {STUDENT_DATA.batchProgress}%
-                            </Text>
-                        </View>
-                        <View style={styles.progressBarContainer}>
-                            <View
-                                style={[
-                                    styles.progressBar,
-                                    { width: `${STUDENT_DATA.batchProgress}%` },
-                                ]}
-                            />
-                        </View>
-                        <Text style={styles.progressDescription}>
-                            {STUDENT_DATA.batchProgress}% of batch curriculum completed
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Stats Grid */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Learning Statistics</Text>
-                    <View style={styles.statsGrid}>
-                        <View style={styles.statCard}>
-                            <Feather name="book-open" size={24} color="#EF4444" />
-                            <Text style={styles.statValue}>{STUDENT_DATA.totalCourses}</Text>
-                            <Text style={styles.statLabel}>Total Courses</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                            <Feather name="check-circle" size={24} color="#10B981" />
-                            <Text style={styles.statValue}>
-                                {STUDENT_DATA.completedCourses}
-                            </Text>
-                            <Text style={styles.statLabel}>Completed</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                            <Feather name="play-circle" size={24} color="#3B82F6" />
-                            <Text style={styles.statValue}>
-                                {STUDENT_DATA.inProgressCourses}
-                            </Text>
-                            <Text style={styles.statLabel}>In Progress</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                            <Feather name="clock" size={24} color="#F59E0B" />
-                            <Text style={styles.statValue}>
-                                {STUDENT_DATA.completedHours}h
-                            </Text>
-                            <Text style={styles.statLabel}>
-                                of {STUDENT_DATA.totalHours}h
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Overall Progress Chart */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Overall Progress</Text>
-                    <View style={styles.chartCard}>
-                        <ProgressChart
-                            data={progressData}
-                            width={width - 64}
-                            height={180}
-                            strokeWidth={12}
-                            radius={60}
-                            chartConfig={chartConfig}
-                            hideLegend={false}
-                        />
-                        <Text style={styles.chartDescription}>
-                            {STUDENT_DATA.completedLectures} of {STUDENT_DATA.totalLectures}{' '}
-                            lectures completed
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Weekly Activity */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Weekly Activity (Hours)</Text>
-                    <View style={styles.chartCard}>
-                        <LineChart
-                            data={WEEKLY_PROGRESS}
-                            width={width - 64}
-                            height={200}
-                            chartConfig={chartConfig}
-                            bezier
-                            style={styles.lineChart}
-                        />
-                    </View>
-                </View>
-
-                {/* Streak & Rank */}
-                <View style={styles.section}>
-                    <View style={styles.twoColumnGrid}>
-                        <View style={styles.streakCard}>
-                            <Feather name="zap" size={28} color="#F59E0B" />
-                            <Text style={styles.streakValue}>
-                                {STUDENT_DATA.currentStreak}
-                            </Text>
-                            <Text style={styles.streakLabel}>Day Streak</Text>
-                            <Text style={styles.streakSub}>
-                                Longest: {STUDENT_DATA.longestStreak} days
-                            </Text>
-                        </View>
-                        <View style={styles.rankCard}>
-                            <Feather name="award" size={28} color="#8B5CF6" />
-                            <Text style={styles.rankValue}>#{STUDENT_DATA.rank}</Text>
-                            <Text style={styles.rankLabel}>Class Rank</Text>
-                            <Text style={styles.rankSub}>
-                                of {STUDENT_DATA.totalStudents} students
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Purchased Courses */}
-                <View style={styles.section}>
-                    <View style={styles.coursesHeader}>
-                        <Text style={styles.sectionTitle}>My Courses</Text>
-                        <View style={styles.tabContainer}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.tab,
-                                    selectedTab === 'all' && styles.tabActive,
-                                ]}
-                                onPress={() => {
-                                    triggerHaptic();
-                                    setSelectedTab('all');
-                                }}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        selectedTab === 'all' && styles.tabTextActive,
-                                    ]}
-                                >
-                                    All
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.tab,
-                                    selectedTab === 'in-progress' && styles.tabActive,
-                                ]}
-                                onPress={() => {
-                                    triggerHaptic();
-                                    setSelectedTab('in-progress');
-                                }}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        selectedTab === 'in-progress' && styles.tabTextActive,
-                                    ]}
-                                >
-                                    In Progress
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.tab,
-                                    selectedTab === 'completed' && styles.tabActive,
-                                ]}
-                                onPress={() => {
-                                    triggerHaptic();
-                                    setSelectedTab('completed');
-                                }}
-                            >
-                                <Text
-                                    style={[
-                                        styles.tabText,
-                                        selectedTab === 'completed' && styles.tabTextActive,
-                                    ]}
-                                >
-                                    Completed
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {filteredCourses.map((course) => (
-                        <TouchableOpacity
-                            key={course.id}
-                            style={styles.courseCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <Image
-                                source={{ uri: course.thumbnail }}
-                                style={styles.courseThumbnail}
-                                resizeMode="cover"
-                            />
-                            <View style={styles.courseDetails}>
-                                <Text style={styles.courseTitle} numberOfLines={2}>
-                                    {course.title}
-                                </Text>
-                                <View style={styles.courseStats}>
-                                    <View style={styles.courseStat}>
-                                        <Feather name="play-circle" size={14} color="#666" />
-                                        <Text style={styles.courseStatText}>
-                                            {course.completedLectures}/{course.totalLectures} lectures
-                                        </Text>
-                                    </View>
-                                    {course.status === 'completed' && (
-                                        <View style={styles.completedBadge}>
-                                            <Feather name="check" size={12} color="#10B981" />
-                                            <Text style={styles.completedText}>Completed</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <View style={styles.courseProgressContainer}>
-                                    <View
-                                        style={[
-                                            styles.courseProgressBar,
-                                            { width: `${course.progress}%` },
-                                            course.status === 'completed' && styles.progressCompleted,
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.courseProgressText}>
-                                    {course.progress}% completed
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* Quick Actions */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
-                    <View style={styles.quickActionsGrid}>
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
-                                <Feather name="settings" size={24} color="#3B82F6" />
-                            </View>
-                            <Text style={styles.actionLabel}>Settings</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#E0E7FF' }]}>
-                                <Feather name="share-2" size={24} color="#6366F1" />
-                            </View>
-                            <Text style={styles.actionLabel}>Share App</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-                                <Feather name="star" size={24} color="#F59E0B" />
-                            </View>
-                            <Text style={styles.actionLabel}>Rate Us</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
-                                <Feather name="award" size={24} color="#10B981" />
-                            </View>
-                            <Text style={styles.actionLabel}>Scholarships</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
-                                <Feather name="gift" size={24} color="#EF4444" />
-                            </View>
-                            <Text style={styles.actionLabel}>Offers</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionCard}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#FCE7F3' }]}>
-                                <Feather name="help-circle" size={24} color="#EC4899" />
-                            </View>
-                            <Text style={styles.actionLabel}>Help & Support</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Additional Menu Items */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>More Options</Text>
-                    <View style={styles.menuCard}>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.menuLeft}>
-                                <Feather name="bell" size={20} color="#000000" />
-                                <Text style={styles.menuText}>Notifications</Text>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#666666" />
-                        </TouchableOpacity>
-
-                        <View style={styles.menuDivider} />
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.menuLeft}>
-                                <Feather name="credit-card" size={20} color="#000000" />
-                                <Text style={styles.menuText}>Payment History</Text>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#666666" />
-                        </TouchableOpacity>
-
-                        <View style={styles.menuDivider} />
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.menuLeft}>
-                                <Feather name="download" size={20} color="#000000" />
-                                <Text style={styles.menuText}>Downloads</Text>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#666666" />
-                        </TouchableOpacity>
-
-                        <View style={styles.menuDivider} />
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.menuLeft}>
-                                <Feather name="file-text" size={20} color="#000000" />
-                                <Text style={styles.menuText}>Terms & Conditions</Text>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#666666" />
-                        </TouchableOpacity>
-
-                        <View style={styles.menuDivider} />
-
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={triggerHaptic}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.menuLeft}>
-                                <Feather name="shield" size={20} color="#000000" />
-                                <Text style={styles.menuText}>Privacy Policy</Text>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#666666" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Logout Button */}
-                <View style={styles.section}>
-                    <TouchableOpacity
-                        style={styles.logoutButton}
-                        onPress={triggerHaptic}
-                        activeOpacity={0.8}
-                    >
-                        <Feather name="log-out" size={20} color="#EF4444" />
-                        <Text style={styles.logoutText}>Logout</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={{ height: 40 }} />
-            </ScrollView>
-        </Layout>
+      <Layout isHeaderShow={false}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading your profile...</Text>
+        </View>
+      </Layout>
     );
+  }
+
+  return (
+    <Layout isHeaderShow={true}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile Header */}
+        <View style={styles.headerCard}>
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarText}>
+                {user?.name ? user?.name.charAt(0).toUpperCase() : "U"}
+              </Text>
+            </View>
+            <View style={styles.headerInfo}>
+              <Text style={styles.studentName}>{user?.name || "Student"}</Text>
+              <Text style={styles.enrollmentId}>
+                ID: DIKSHANT{user?.id || ""}
+              </Text>
+              <Text style={styles.joinDate}>
+                Joined {user?.createdAt ? formatDate(user.createdAt) : "N/A"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.contactInfo}>
+            <View style={styles.contactRow}>
+              <Feather name="mail" size={12} color={colors.textSecondary} />
+              <Text style={styles.contactText}>{user?.email || "N/A"}</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <Feather name="phone" size={12} color={colors.textSecondary} />
+              <Text style={styles.contactText}>{user?.mobile || "N/A"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* My Courses Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              My Courses ({myCourses.length})
+            </Text>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            {["all", "in-progress", "completed"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, selectedTab === tab && styles.tabActive]}
+                onPress={() => {
+                  triggerHaptic();
+                  setSelectedTab(tab);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    selectedTab === tab && styles.tabTextActive,
+                  ]}
+                >
+                  {tab === "all"
+                    ? "All"
+                    : tab === "in-progress"
+                    ? "In Progress"
+                    : "Completed"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Course List */}
+          {filteredCourses.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Feather name="book-open" size={32} color={colors.primary} />
+              <Text style={styles.emptyText}>No courses found</Text>
+            </View>
+          ) : (
+            filteredCourses.map((order) => {
+              const batch = order.batch;
+              const statusStyle = getStatusColor(batch?.c_status);
+
+              return (
+                <TouchableOpacity
+                  key={order.id}
+                  style={styles.courseCard}
+                  activeOpacity={0.8}
+                  onPress={() => redirectCourse(order?.batch?.id)}
+                >
+                  <View style={styles.courseContent}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: statusStyle.bg },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.statusText, { color: statusStyle.text }]}
+                      >
+                        {batch?.c_status || "Active"}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.courseTitle} numberOfLines={2}>
+                      {batch?.name || "Course Name"}
+                    </Text>
+
+                    {batch?.program && (
+                      <Text style={styles.programText}>
+                        {batch.program.name}
+                      </Text>
+                    )}
+
+                    {order.subjects && order.subjects.length > 0 && (
+                      <View style={styles.subjectsContainer}>
+                        {order.subjects.slice(0, 3).map((sub) => (
+                          <View key={sub.id} style={styles.subjectTag}>
+                            <Text style={styles.subjectTagText}>
+                              {sub.name}
+                            </Text>
+                          </View>
+                        ))}
+                        {order.subjects.length > 3 && (
+                          <Text style={styles.moreSubjects}>
+                            +{order.subjects.length - 3} more
+                          </Text>
+                        )}
+                      </View>
+                    )}
+
+                    <View style={styles.priceContainer}>
+                      <View>
+                        <Text style={styles.originalPrice}>
+                          ₹{order.amount?.toLocaleString("en-IN")}
+                        </Text>
+                        <Text style={styles.finalPrice}>
+                          Paid: ₹{order.totalAmount?.toLocaleString("en-IN")}
+                        </Text>
+                      </View>
+                      {order.couponCode && (
+                        <View style={styles.couponBadge}>
+                          <Feather name="tag" size={8} color={colors.success} />
+                          <Text style={styles.couponText}>
+                            {order.couponCode}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.datesRow}>
+                      <View style={styles.dateItem}>
+                        <Feather
+                          name="calendar"
+                          size={10}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.dateText}>
+                          Starts:{" "}
+                          {batch?.startDate
+                            ? formatDate(batch.startDate)
+                            : "N/A"}
+                        </Text>
+                      </View>
+                      <View style={styles.dateItem}>
+                        <Feather
+                          name="clock"
+                          size={10}
+                          color={colors.textSecondary}
+                        />
+                        <Text style={styles.dateText}>
+                          Enrolled: {formatDate(order.createdAt)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.progressContainer}>
+                      <View style={styles.progressBar}>
+                        <View style={styles.progressBarBackground}>
+                          <View
+                            style={[
+                              styles.progressFill,
+                              {
+                                width:
+                                  batch?.c_status === "Start Soon"
+                                    ? "0%"
+                                    : batch?.c_status === "In Progress"
+                                    ? "65%"
+                                    : batch?.c_status === "Partially Complete"
+                                    ? "85%"
+                                    : "100%",
+                                backgroundColor:
+                                  batch?.c_status === "Start Soon"
+                                    ? colors.warning
+                                    : batch?.c_status === "In Progress"
+                                    ? colors.primary
+                                    : batch?.c_status === "Partially Complete"
+                                    ? "#3B82F6"
+                                    : colors.success,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                      <Text style={styles.progressText}>
+                        {(() => {
+                          switch (batch?.c_status) {
+                            case "Start Soon":
+                              return "Not Started";
+                            case "In Progress":
+                              return "In Progress";
+                            case "Partially Complete":
+                              return "Partially Complete";
+                            case "Completed":
+                              return "100% Complete";
+                            default:
+                              return "Status Unknown";
+                          }
+                        })()}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+          <View style={styles.quickActionsGrid}>
+            {quickActions.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.actionCard}
+                activeOpacity={0.7}
+                onPress={() => {
+                  triggerHaptic();
+                  navigation.navigate(item.screen);
+                }}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: item.bg }]}>
+                  <Feather name={item.icon} size={16} color={item.color} />
+                </View>
+
+                <Text style={styles.actionLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>More Options</Text>
+
+          <View style={styles.menuCard}>
+            {menuOptions.map((item, index) => (
+              <React.Fragment key={item.label}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    triggerHaptic();
+                    navigation.navigate(item.screen);
+                  }}
+                >
+                  <View style={styles.menuLeft}>
+                    <Feather
+                      name={item.icon}
+                      size={16}
+                      color={colors.secondary}
+                    />
+                    <Text style={styles.menuText}>{item.label}</Text>
+                  </View>
+
+                  <Feather
+                    name="chevron-right"
+                    size={16}
+                    color={colors.textLight}
+                  />
+                </TouchableOpacity>
+
+                {index !== menuOptions.length - 1 && (
+                  <View style={styles.menuDivider} />
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+        </View>
+
+        {/* Logout Button */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={triggerHaptic}
+            activeOpacity={0.8}
+          >
+            <Feather name="log-out" size={16} color={colors.danger} />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </Layout>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#ffffff',
-    },
-    scrollContent: {
-        padding: 16,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#ffffff',
-    },
-    loadingText: {
-        marginTop: 12,
-        fontSize: 14,
-        color: '#666666',
-        fontWeight: '500',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    padding: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
 
-    // Header Card
-    headerCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        marginBottom: 20,
-    },
-    profileHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 3,
-        borderColor: '#EF4444',
-    },
-    headerInfo: {
-        flex: 1,
-        marginLeft: 16,
-    },
-    studentName: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#000000',
-        marginBottom: 4,
-    },
-    enrollmentId: {
-        fontSize: 13,
-        color: '#666666',
-        marginBottom: 8,
-    },
-    batchBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: '#FEF3C7',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        alignSelf: 'flex-start',
-    },
-    batchText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#000000',
-    },
-    contactInfo: {
-        gap: 10,
-    },
-    contactRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    contactText: {
-        fontSize: 13,
-        color: '#666666',
-    },
+  headerCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  headerInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  enrollmentId: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: "600",
+    marginVertical: 2,
+  },
+  joinDate: {
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+  contactInfo: {
+    gap: 6,
+  },
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  contactText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
 
-    // Section
-    section: {
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#000000',
-        marginBottom: 12,
-    },
+  section: {
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
 
-    // Batch Progress
-    batchProgressCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    progressHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    batchProgressTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#000000',
-        flex: 1,
-    },
-    progressPercentage: {
-        fontSize: 24,
-        fontWeight: '900',
-        color: '#EF4444',
-    },
-    progressBarContainer: {
-        height: 12,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 6,
-        overflow: 'hidden',
-        marginBottom: 8,
-    },
-    progressBar: {
-        height: '100%',
-        backgroundColor: '#EF4444',
-        borderRadius: 6,
-    },
-    progressDescription: {
-        fontSize: 12,
-        color: '#666666',
-    },
+  tabContainer: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+  },
+  tab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+  },
+  tabActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
 
-    // Stats Grid
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    statCard: {
-        flex: 1,
-        minWidth: '45%',
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    statValue: {
-        fontSize: 28,
-        fontWeight: '900',
-        color: '#000000',
-        marginTop: 8,
-        marginBottom: 4,
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#666666',
-        textAlign: 'center',
-        fontWeight: '600',
-    },
+  courseCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  courseImage: {
+    width: "100%",
+    height: 120,
+  },
+  courseContent: {
+    padding: 12,
+  },
+  statusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: "600",
+  },
+  courseTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  programText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  subjectsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginBottom: 8,
+  },
+  subjectTag: {
+    backgroundColor: colors.lightRed,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  subjectTagText: {
+    fontSize: 9,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  moreSubjects: {
+    fontSize: 9,
+    color: colors.textSecondary,
+    fontStyle: "italic",
+    alignSelf: "center",
+  },
+  priceContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 6,
+  },
+  originalPrice: {
+    fontSize: 10,
+    color: colors.textLight,
+    textDecorationLine: "line-through",
+  },
+  finalPrice: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  couponBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.lightGreen,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 3,
+  },
+  couponText: {
+    fontSize: 8,
+    color: colors.success,
+    fontWeight: "600",
+  },
+  datesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 6,
+  },
+  dateItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  dateText: {
+    fontSize: 9,
+    color: colors.textSecondary,
+  },
+  progressContainer: {
+    marginTop: 8,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 2,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  progressBarBackground: {
+    flex: 1,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
 
-    // Chart Card
-    chartCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    chartDescription: {
-        fontSize: 13,
-        color: '#666666',
-        marginTop: 12,
-        textAlign: 'center',
-    },
-    lineChart: {
-        borderRadius: 12,
-    },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  avatarContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#DC2626",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-    // Two Column Grid
-    twoColumnGrid: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    streakCard: {
-        flex: 1,
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    streakValue: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: '#000000',
-        marginTop: 8,
-    },
-    streakLabel: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#000000',
-        marginTop: 4,
-    },
-    streakSub: {
-        fontSize: 11,
-        color: '#666666',
-        marginTop: 4,
-    },
-    rankCard: {
-        flex: 1,
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    rankValue: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: '#000000',
-        marginTop: 8,
-    },
-    rankLabel: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#000000',
-        marginTop: 4,
-    },
-    rankSub: {
-        fontSize: 11,
-        color: '#666666',
-        marginTop: 4,
-        textAlign: 'center',
-    },
+  avatarText: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "700",
+  },
 
-    // Courses Section
-    coursesHeader: {
-        marginBottom: 16,
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        gap: 8,
-        marginTop: 12,
-    },
-    tab: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#F3F4F6',
-    },
-    tabActive: {
-        backgroundColor: '#000000',
-    },
-    tabText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#666666',
-    },
-    tabTextActive: {
-        color: '#ffffff',
-    },
-    courseCard: {
-        flexDirection: 'row',
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        marginBottom: 12,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    courseThumbnail: {
-        width: 120,
-        height: 120,
-        backgroundColor: '#F3F4F6',
-    },
-    courseDetails: {
-        flex: 1,
-        padding: 12,
-        justifyContent: 'space-between',
-    },
-    courseTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#000000',
-        lineHeight: 20,
-        marginBottom: 8,
-    },
-    courseStats: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    courseStat: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    courseStatText: {
-        fontSize: 11,
-        color: '#666666',
-        fontWeight: '500',
-    },
-    completedBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#D1FAE5',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 12,
-    },
-    completedText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#10B981',
-    },
-    courseProgressContainer: {
-        height: 6,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 3,
-        overflow: 'hidden',
-        marginBottom: 6,
-    },
-    courseProgressBar: {
-        height: '100%',
-        backgroundColor: '#3B82F6',
-        borderRadius: 3,
-    },
-    progressCompleted: {
-        backgroundColor: '#10B981',
-    },
-    courseProgressText: {
-        fontSize: 11,
-        color: '#666666',
-        fontWeight: '600',
-    },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
 
-    // Quick Actions
-    quickActionsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    actionCard: {
-        width: (width - 56) / 3,
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    actionIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    actionLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#000000',
-        textAlign: 'center',
-    },
+  quickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  actionCard: {
+    width: (width - 48) / 3,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  actionLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.text,
+    textAlign: "center",
+  },
 
-    // Menu Card
-    menuCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        overflow: 'hidden',
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-    },
-    menuLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    menuText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#000000',
-    },
-    menuDivider: {
-        height: 1,
-        backgroundColor: '#F3F4F6',
-        marginHorizontal: 16,
-    },
+  menuCard: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  menuLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  menuText: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: "500",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: 12,
+  },
 
-    // Logout Button
-    logoutButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        backgroundColor: '#ffffff',
-        paddingVertical: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#EF4444',
-    },
-    logoutText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#EF4444',
-    },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    gap: 6,
+  },
+  logoutText: {
+    fontSize: 12,
+    color: colors.danger,
+    fontWeight: "600",
+  },
 });
+
+export { colors };
