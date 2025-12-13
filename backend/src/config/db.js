@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('dikshant_db', 'root', 'root', {
-  host: '127.0.0.1',
+const sequelize = new Sequelize('du748895167_test_dikhshant', 'du748895167_test_dikhshant', 'Test_dikhshant1234', {
+  host: '217.21.84.103',
   port: 3307,        // IMPORTANT: your Docker mapped port
   dialect: 'mysql',
   logging: false,
