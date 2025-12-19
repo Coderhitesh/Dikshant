@@ -136,7 +136,7 @@ const Banner = () => {
 
   return (
     <>
-      <PageMeta title="Banners" />
+      <PageMeta title="Banners" description="" />
       <PageBreadcrumb pageTitle="Banners" />
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
