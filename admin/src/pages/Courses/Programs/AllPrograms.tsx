@@ -88,6 +88,7 @@ const AllPrograms: React.FC = () => {
     open: boolean;
     program?: Program;
   }>({ open: false });
+  const [deleting, setDeleting] = useState<boolean>(false);
 
   // Debounce search input
   useEffect(() => {
@@ -132,15 +133,27 @@ const AllPrograms: React.FC = () => {
 
   // Delete program
   const handleDelete = async () => {
-    if (!deleteModal.program) return;
-    try {
-      await axios.delete(`${API_URL}/programs/${deleteModal.program.id}`);
-      setPrograms(programs.filter((p) => p.id !== deleteModal.program.id));
-      setDeleteModal({ open: false });
-    } catch (err) {
-      alert("Failed to delete program");
-    }
-  };
+  const program = deleteModal.program;
+  if (!program) return; // ✅ TS is now happy
+
+  setDeleting(true);
+  try {
+    await axios.delete(`${API_URL}/programs/${program.id}`);
+
+    setPrograms((prev) => prev.filter((p) => p.id !== program.id));
+
+    setDeleteModal({ open: false });
+  } catch (err: any) {
+    const message =
+      err.response?.data?.message ||
+      err.message ||
+      "Failed to delete program. Please try again.";
+    alert(message);
+  } finally {
+    setDeleting(false);
+  }
+};
+
 
   const currentFilter =
     COURSE_TYPES.find((t) => t.value === selectedType) || COURSE_TYPES[0];
@@ -468,17 +481,16 @@ const AllPrograms: React.FC = () => {
                       <Badge color="info">{program.typeOfCourse}</Badge>
                     </div>
                     <div className="flex gap-2 pt-2">
-                      <Button size="sm" asChild>
+                      <Button size="sm" >
                         <Link to={`/admin/programs/view/${program.slug}`}>
                           View
                         </Link>
                       </Button>
-                      <Button size="sm" variant="outline" asChild>
+                      <Button size="sm" variant="outline" >
                         <Link to={`/all-programs/${program.id}`}>Edit</Link>
                       </Button>
                       <Button
                         size="sm"
-                        variant="destructive"
                         onClick={() => setDeleteModal({ open: true, program })}
                       >
                         Delete
@@ -546,8 +558,8 @@ const AllPrograms: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Yes, Delete
+              <Button onClick={handleDelete}>
+                {deleting ? "Deleting..." : "Yes, Delete"}
               </Button>
             </div>
           </div>

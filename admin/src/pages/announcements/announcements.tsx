@@ -3,10 +3,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { Plus, Edit, Trash2, Calendar, Search, X, AlertCircle } from "lucide-react";
 import PageMeta from "../../components/common/PageMeta";
-import Input from "../../components/form/input/InputField";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
-const API_URL = "http://localhost:5001/api/announcements";
+const API_URL = "https://www.dikapi.olyox.in/api/announcements";
 
 interface Announcement {
   id: number;
@@ -122,7 +121,7 @@ const Announcements = () => {
 
   return (
     <>
-      <PageMeta title="Announcements" />
+      <PageMeta title="Announcements" description="" />
       <PageBreadcrumb pageTitle="Announcements" />
 
       <div className="max-w-full mx-auto p-4 sm:p-6">

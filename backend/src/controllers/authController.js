@@ -444,6 +444,7 @@ exports.login = async (req, res) => {
 exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    // console.log("ia m hit",email,password)
 
     if (!email || !password) {
       return res.status(400).json({
@@ -452,7 +453,7 @@ exports.adminLogin = async (req, res) => {
     }
 
     const user = await User.findOne({ where: { email } });
-
+    // console.log("user",user);
     if (!user) {
       return res.status(404).json({
         error: "User not found.",
@@ -465,19 +466,22 @@ exports.adminLogin = async (req, res) => {
       });
     }
 
+    // console.log("user role",user.role);
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({
         error: "Incorrect email or password. Please try again.",
       });
     }
+    // console.log("user check");
 
     const { accessToken, refreshToken } = generateTokens(user);
-    user.refresh_token = refreshToken;
-    await user.save();
-
-    return res.json({
-      status: "success",
+    // user.refresh_token = refreshToken;
+    // await user.save();
+// console.log("user check done");
+    return res.status(200).json({
+      success: true,
       message: "Admin logged in successfully!",
       token: accessToken,
       refresh_token: refreshToken,

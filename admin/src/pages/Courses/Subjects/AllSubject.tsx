@@ -16,7 +16,7 @@ import { Skeleton } from "../../../components/ui/Skeleton/Skeleton";
 import { Plus, Search, Edit, Trash2, AlertCircle, X } from "lucide-react";
 import Label from "../../../components/form/Label";
 
-const API_URL = "http://localhost:5001/api/subjects";
+const API_URL = "https://www.dikapi.olyox.in/api/subjects";
 
 interface Subject {
   id: number;
@@ -160,7 +160,7 @@ setFilteredSubjects(sortedData);
 
   return (
     <>
-      <PageMeta title="All Subjects | Admin Dashboard" />
+      <PageMeta title="All Subjects | Admin Dashboard" description="" />
       <PageBreadcrumb pageTitle="All Subjects" />
 
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] p-5 lg:p-6">
@@ -361,13 +361,13 @@ setFilteredSubjects(sortedData);
             <form onSubmit={handleCreate}>
               <div className="space-y-5">
                 <div>
-                  <Label required>Name</Label>
+                  <Label >Name</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    required
+                    
                   />
                 </div>
                 <div className="relative">
@@ -423,13 +423,13 @@ setFilteredSubjects(sortedData);
             <form onSubmit={handleUpdate}>
               <div className="space-y-5">
                 <div>
-                  <Label required>Name</Label>
+                  <Label >Name</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    required
+                    
                   />
                 </div>
                 <div className="relative">
@@ -480,7 +480,7 @@ setFilteredSubjects(sortedData);
               <strong>{deleteModal.name}</strong>"? This cannot be undone.
             </p>
             <div className="flex gap-4 justify-center">
-              <Button variant="destructive" onClick={handleDelete}>
+              <Button onClick={handleDelete}>
                 Yes, Delete
               </Button>
               <Button variant="outline" onClick={() => setDeleteModal(null)}>

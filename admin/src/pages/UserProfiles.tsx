@@ -196,7 +196,7 @@ export default function UserProfiles() {
                       </TableCell>
 
                       <TableCell className="px-6 py-4">
-                        <Badge variant="light" className="capitalize">
+                        <Badge variant="light">
                           {user.role}
                         </Badge>
                       </TableCell>
@@ -208,7 +208,7 @@ export default function UserProfiles() {
                           <Badge color="error">Inactive</Badge>
                         )}
                         {user.is_verified ? null : (
-                          <Badge color="warning" className="ml-2">
+                          <Badge color="warning">
                             Unverified
                           </Badge>
                         )}
@@ -251,7 +251,6 @@ export default function UserProfiles() {
                     return (
                       <Button
                         key={pageNum}
-                        variant={page === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                       >
@@ -263,7 +262,6 @@ export default function UserProfiles() {
                     <>
                       <span className="px-2 text-gray-500">...</span>
                       <Button
-                        variant={page === totalPages ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(totalPages)}
                       >

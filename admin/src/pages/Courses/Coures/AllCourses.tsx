@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -27,7 +27,7 @@ import {
 const cn = (...classes: (string | undefined | null | false)[]) =>
   classes.filter(Boolean).join(" ");
 
-const API_URL = "http://localhost:5001/api/batchs";
+const API_URL = "https://www.dikapi.olyox.in/api/batchs";
 
 interface Subject {
   id: number;
@@ -204,7 +204,7 @@ const AllBatches = () => {
   if (error && !loading) {
     return (
       <>
-        <PageMeta title="Error | All Batches" />
+        <PageMeta title="Error | All Batches" description="" />
         <PageBreadcrumb pageTitle="All Batches" />
         <div className="max-w-3xl mx-auto p-4 sm:p-6">
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-8">
@@ -537,7 +537,6 @@ const AllBatches = () => {
                               ? "text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
                               : "text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
                           )}
-                          title={batch.status === "active" ? "Deactivate" : "Activate"}
                         >
                           {batch.status === "active" ? (
                             <ToggleRight className="w-4 h-4" />
@@ -550,7 +549,6 @@ const AllBatches = () => {
                           variant="outline"
                           className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs"
                           onClick={() => setDeleteModal({ open: true, batch })}
-                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -665,7 +663,6 @@ const AllBatches = () => {
                     </Button>
                     <Button
                       size="sm"
-                      variant="destructive"
                       onClick={() => setDeleteModal({ open: true, batch })}
                       className="text-xs"
                     >
@@ -736,7 +733,6 @@ const AllBatches = () => {
                 Cancel
               </Button>
               <Button
-                variant="destructive"
                 onClick={deleteBatch}
                 disabled={deleting}
                 size="sm"

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, Upload, X, AlertCircle, Link2 } from "lucide-react";
+import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, Upload, X, AlertCircle } from "lucide-react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 
-const API_URL = "http://localhost:5001/api/banners";
+const API_URL = "https://www.dikapi.olyox.in/api/banners";
 
 interface Banner {
   id: number;

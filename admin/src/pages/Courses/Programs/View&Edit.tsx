@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import PageMeta from "../../../components/common/PageMeta";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
 import Input from "../../../components/form/input/InputField";
@@ -9,9 +9,8 @@ import TextArea from "../../../components/form/input/TextArea";
 import Form from "../../../components/form/Form";
 import Label from "../../../components/form/Label";
 import { API_URL } from "../../../constant/constant";
-import { Loader2, Upload, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { Loader2, Upload, Image as ImageIcon } from "lucide-react";
 
-const PLACEHOLDER = "https://via.placeholder.com/600x400/e0e0e0/999999?text=No+Image";
 
 const ViewEdit = () => {
   const [searchParams] = useSearchParams();
@@ -194,25 +193,25 @@ const ViewEdit = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {/* Name */}
               <div>
-                <Label required>Program Name</Label>
+                <Label >Program Name</Label>
                 <Input
                   value={fields.name}
                   onChange={handleNameChange}
                   placeholder="Enter program name"
                   disabled={isViewMode}
-                  required
+                  
                 />
               </div>
 
               {/* Slug */}
               <div>
-                <Label required>Slug (URL)</Label>
+                <Label >Slug (URL)</Label>
                 <Input
                   value={fields.slug}
                   onChange={(e) => setFields({ ...fields, slug: e.target.value })}
                   placeholder="program-slug"
                   disabled={isViewMode}
-                  required
+                  
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Auto-generated from name. Edit if needed.
@@ -239,7 +238,7 @@ const ViewEdit = () => {
               <Label>Description</Label>
               <TextArea
                 value={fields.description}
-                onChange={(e) => setFields({ ...fields, description: e.target.value })}
+                onChange={(value) => setFields({ ...fields, description: value })}
                 placeholder="Describe the program..."
                 rows={6}
                 disabled={isViewMode}

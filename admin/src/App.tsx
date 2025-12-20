@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -20,7 +20,6 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
 import AllPrograms from "./pages/Courses/Programs/AllPrograms";
 import ViewEdit from "./pages/Courses/Programs/View&Edit";
-import { Toaster } from "react-hot-toast";
 import AddProgram from "./pages/Courses/Programs/AddProgram";
 import AllCourses from "./pages/Courses/Coures/AllCourses";
 import ViewCourse from "./pages/Courses/Coures/ViewCourse";
@@ -32,76 +31,81 @@ import Announcements from "./pages/announcements/announcements";
 import Banner from "./pages/Banner/Banner";
 import FAQPage from "./pages/faq/faq";
 import DoubtsAdmin from "./pages/doubts/doubts";
-export default function App() {
+import { Toaster } from "react-hot-toast";
+import ProtectedRoute from "./ProtectedRoute";
+
+export default function App(){
   return (
     <>
       <Router>
         <ScrollToTop />
+
         <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
-            <Route index path="/" element={<Home />} />
+          {/* 🔐 PROTECTED ROUTES */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route index path="/" element={<Home />} />
 
-            {/* Others Page */}
-            <Route path="/profile" element={<UserProfiles />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/blank" element={<Blank />} />
+              {/* Others */}
+              <Route path="/profile" element={<UserProfiles />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/blank" element={<Blank />} />
 
-            {/* Forms */}
-            <Route path="/form-elements" element={<FormElements />} />
+              {/* Forms */}
+              <Route path="/form-elements" element={<FormElements />} />
 
-            {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
+              {/* Tables */}
+              <Route path="/basic-tables" element={<BasicTables />} />
 
-            {/* Ui Elements */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/avatars" element={<Avatars />} />
-            <Route path="/badge" element={<Badges />} />
-            <Route path="/buttons" element={<Buttons />} />
-            <Route path="/images" element={<Images />} />
-            <Route path="/videos" element={<Videos />} />
+              {/* UI */}
+              <Route path="/alerts" element={<Alerts />} />
+              <Route path="/avatars" element={<Avatars />} />
+              <Route path="/badge" element={<Badges />} />
+              <Route path="/buttons" element={<Buttons />} />
+              <Route path="/images" element={<Images />} />
+              <Route path="/videos" element={<Videos />} />
 
-            {/* Programs */}
-            <Route path="/all-programs" element={<AllPrograms />} />
-            <Route path="/programs" element={<ViewEdit />} />
-            <Route path="/programs-add" element={<AddProgram />} />
+              {/* Programs */}
+              <Route path="/all-programs" element={<AllPrograms />} />
+              <Route path="/programs" element={<ViewEdit />} />
+              <Route path="/programs-add" element={<AddProgram />} />
 
-            {/* Courses */}
-            <Route path="/all-courses" element={<AllCourses />} />
-            <Route path="/all-courses/view/:id" element={<ViewCourse />} />
-            <Route path="/all-courses/edit/:id" element={<EditBatch />} />
-            <Route path="/all-courses/add" element={<CreateCourse />} />
-            <Route
-              path="/all-courses/add-video/:id"
-              element={<CourseVideos />}
-            />
+              {/* Courses */}
+              <Route path="/all-courses" element={<AllCourses />} />
+              <Route path="/all-courses/view/:id" element={<ViewCourse />} />
+              <Route path="/all-courses/edit/:id" element={<EditBatch />} />
+              <Route path="/all-courses/add" element={<CreateCourse />} />
+              <Route
+                path="/all-courses/add-video/:id"
+                element={<CourseVideos />}
+              />
 
-            {/* Subjects */}
-            <Route path="/all-subject" element={<AllSubject />} />
-            <Route path="/all-faqs" element={<FAQPage />} />
-            <Route path="/all-doubts" element={<DoubtsAdmin />} />
+              {/* Subjects */}
+              <Route path="/all-subject" element={<AllSubject />} />
+              <Route path="/all-faqs" element={<FAQPage />} />
+              <Route path="/all-doubts" element={<DoubtsAdmin />} />
 
-            {/* Announcements */}
+              {/* Announcements */}
+              <Route path="/announcements" element={<Announcements />} />
 
-            <Route path="/announcements" element={<Announcements />} />
-            {/*Banners */}
+              {/* Banners */}
+              <Route path="/app-baners" element={<Banner />} />
 
-            <Route path="/app-baners" element={<Banner />} />
-
-
-            {/* Charts */}
-            <Route path="/line-chart" element={<LineChart />} />
-            <Route path="/bar-chart" element={<BarChart />} />
+              {/* Charts */}
+              <Route path="/line-chart" element={<LineChart />} />
+              <Route path="/bar-chart" element={<BarChart />} />
+            </Route>
           </Route>
 
-          {/* Auth Layout */}
+          {/* 🔓 PUBLIC ROUTES */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 
-          {/* Fallback Route */}
+          {/* ❌ NOT FOUND */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+
       <Toaster position="top-right" />
     </>
   );
