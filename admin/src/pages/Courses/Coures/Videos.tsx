@@ -4,21 +4,36 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import PageMeta from "../../../components/common/PageMeta";
 import PageBreadcrumb from "../../../components/common/PageBreadCrumb";
-import { Play, Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, AlertCircle, Link2, ImageIcon } from "lucide-react";
+import {
+  Play,
+  Plus,
+  Edit,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  X,
+  AlertCircle,
+  Link2,
+  ImageIcon,
+} from "lucide-react";
 
 const API_URL = "http://localhost:5001/api/videocourses";
 const SUBJECTS_API = "http://localhost:5001/api/subjects";
+
+/* ================= TYPES ================= */
 
 interface Subject {
   id: number;
   name: string;
 }
 
+type VideoSource = "youtube" | "s3" | "vimeo";
+
 interface Video {
   id: number;
   title: string;
   imageUrl: string;
-  videoSource: "youtube" | "s3" | "vimeo";
+  videoSource: VideoSource;
   url: string;
   subjectId: number;
   subject?: Subject;
@@ -29,50 +44,73 @@ interface Video {
   programId: number;
 }
 
+interface VideoForm {
+  title: string;
+  videoSource: VideoSource;
+  url: string;
+  subjectId: string;
+  isDownloadable: boolean;
+  isDemo: boolean;
+  status: boolean;
+}
+
+/* ================= COMPONENT ================= */
+
 const CourseVideos = () => {
   const { id } = useParams<{ id: string }>();
-  const batchId = id ? parseInt(id) : null;
+  const batchId = id ? Number(id) : null;
 
   const [videos, setVideos] = useState<Video[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [formModal, setFormModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [deleteModal, setDeleteModal] = useState<Video | null>(null);
-  const [form, setForm] = useState({
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
+
+  /* ✅ PROPERLY TYPED FORM STATE */
+  const [form, setForm] = useState<VideoForm>({
     title: "",
-    videoSource: "youtube" as "youtube" | "s3",
+    videoSource: "youtube",
     url: "",
     subjectId: "",
     isDownloadable: false,
     isDemo: false,
     status: true,
   });
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+
+  /* ================= FETCH ================= */
 
   useEffect(() => {
+    if (!batchId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [videosRes, subjectsRes] = await Promise.all([
+          axios.get<{ success: boolean; data: Video[] }>(
+            `${API_URL}/batch/${batchId}`
+          ),
+          axios.get<Subject[]>(SUBJECTS_API),
+        ]);
+        setVideos(videosRes.data.success ? videosRes.data.data : []);
+        setSubjects(subjectsRes.data);
+      } catch {
+        toast.error("Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchData();
   }, [batchId]);
 
-  const fetchData = async () => {
-    if (!batchId) return;
-    setLoading(true);
-    try {
-      const [videosRes, subjectsRes] = await Promise.all([
-        axios.get<{ success: boolean; data: Video[] }>(`${API_URL}/batch/${batchId}`),
-        axios.get<Subject[]>(SUBJECTS_API),
-      ]);
-      setVideos(videosRes.data.success ? videosRes.data.data : []);
-      setSubjects(subjectsRes.data);
-    } catch (error) {
-      toast.error("Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* ================= MODALS ================= */
 
   const openAddModal = () => {
     setEditMode(false);
@@ -96,7 +134,7 @@ const CourseVideos = () => {
     setEditingId(video.id);
     setForm({
       title: video.title,
-      videoSource: video.videoSource,
+      videoSource: video.videoSource, // ✅ FIXED
       url: video.url,
       subjectId: video.subjectId.toString(),
       isDownloadable: video.isDownloadable,
@@ -107,12 +145,18 @@ const CourseVideos = () => {
     setFormModal(true);
   };
 
+  /* ================= ACTIONS ================= */
+
   const toggleStatus = async (video: Video) => {
+    const newStatus = video.status === "active" ? "inactive" : "active";
     try {
-      const newStatus = video.status === "active" ? "inactive" : "active";
       await axios.put(`${API_URL}/${video.id}`, { status: newStatus });
-      toast.success(`Video ${newStatus === "active" ? "activated" : "deactivated"}`);
-      setVideos(prev => prev.map(v => v.id === video.id ? { ...v, status: newStatus } : v));
+      setVideos(v =>
+        v.map(item =>
+          item.id === video.id ? { ...item, status: newStatus } : item
+        )
+      );
+      toast.success(`Video ${newStatus}`);
     } catch {
       toast.error("Failed to update status");
     }
@@ -122,61 +166,67 @@ const CourseVideos = () => {
     if (!deleteModal) return;
     try {
       await axios.delete(`${API_URL}/${deleteModal.id}`);
-      toast.success("Video deleted");
-      setVideos(prev => prev.filter(v => v.id !== deleteModal.id));
+      setVideos(v => v.filter(item => item.id !== deleteModal.id));
       setDeleteModal(null);
+      toast.success("Video deleted");
     } catch {
       toast.error("Failed to delete");
     }
   };
 
+  /* ================= SUBMIT ================= */
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!batchId) return;
 
-    const formData = new FormData();
-    formData.append("title", form.title);
-    formData.append("videoSource", form.videoSource);
-    formData.append("url", form.url);
-    formData.append("batchId", batchId.toString());
-    formData.append("subjectId", form.subjectId);
-    formData.append("programId", "1");
-    formData.append("isDownloadable", form.isDownloadable.toString());
-    formData.append("isDemo", form.isDemo.toString());
-    formData.append("status", form.status ? "active" : "inactive");
-    if (thumbnailFile) formData.append("imageUrl", thumbnailFile);
+    const data = new FormData();
+    data.append("title", form.title);
+    data.append("videoSource", form.videoSource);
+    data.append("url", form.url);
+    data.append("batchId", batchId.toString());
+    data.append("subjectId", form.subjectId);
+    data.append("programId", "1");
+    data.append("isDownloadable", String(form.isDownloadable));
+    data.append("isDemo", String(form.isDemo));
+    data.append("status", form.status ? "active" : "inactive");
+    if (thumbnailFile) data.append("imageUrl", thumbnailFile);
 
     try {
       if (editMode && editingId) {
-        await axios.put(`${API_URL}/${editingId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Video updated successfully!");
+        await axios.put(`${API_URL}/${editingId}`, data);
+        toast.success("Video updated");
       } else {
-        await axios.post(API_URL, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        toast.success("Video added successfully!");
+        await axios.post(API_URL, data);
+        toast.success("Video added");
       }
       setFormModal(false);
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || `Failed to ${editMode ? "update" : "add"} video`);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed");
     }
   };
 
+  /* ================= PLAYER ================= */
+
   const getYouTubeEmbedUrl = (url: string) => {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : null;
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
+    return match
+      ? `https://www.youtube.com/embed/${match[1]}?autoplay=1`
+      : null;
   };
 
   const renderVideoPlayer = (video: Video) => {
     if (video.videoSource === "youtube") {
       const embedUrl = getYouTubeEmbedUrl(video.url);
       return embedUrl ? (
-        <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay" />
+        <iframe src={embedUrl} className="w-full h-full" allowFullScreen />
       ) : (
-        <div className="flex items-center justify-center h-full text-red-500">Invalid URL</div>
+        <div className="text-red-500 flex items-center justify-center h-full">
+          Invalid URL
+        </div>
       );
     }
     return <video src={video.url} controls className="w-full h-full" />;
@@ -184,7 +234,7 @@ const CourseVideos = () => {
 
   return (
     <>
-      <PageMeta title="Course Videos" />
+      <PageMeta title="Course Videos" description="" />
       <PageBreadcrumb pageTitle="Course Videos" />
 
       <div className="max-w-full mx-auto p-4 sm:p-6">

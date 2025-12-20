@@ -23,6 +23,8 @@ class ProgramController {
         name: req.body.name,
         slug: generateSlug(req.body.name),
         description: req.body.description,
+        typeOfCourse: req.body.typeOfCourse,
+        position: req.body.position,
         imageUrl: imageUrl,
       });
 
@@ -193,8 +195,9 @@ class ProgramController {
   // =========================
   static async delete(req, res) {
     try {
+      console.log("i am hit",req.params.id)
       const program = await Program.findByPk(req.params.id);
-
+console.log("program",program)
       if (!program) {
         return res.status(404).json({ message: "Program not found" });
       }

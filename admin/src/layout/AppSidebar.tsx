@@ -3,20 +3,14 @@ import { Link, useLocation } from "react-router";
 
 // Assume these icons are imported from an icon library
 import {
-  BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
   PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
-import SidebarWidget from "./SidebarWidget";
 import { ImageDown, Speaker } from "lucide-react";
 
 type NavItem = {
@@ -30,7 +24,7 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-   path: "/",
+    path: "/",
   },
 
   {
@@ -44,21 +38,29 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "All Courses", path: "/all-courses", pro: false },
       { name: "Programs", path: "/all-programs", pro: false },
-      { name: "Subjects", path: "/all-subject", pro: false }
+      { name: "Subjects", path: "/all-subject", pro: false },
     ],
-    
   },
-    {
+  {
     icon: <Speaker />,
     name: "Announcements",
     path: "/announcements",
   },
-     {
+  {
     icon: <ImageDown />,
     name: "App Banners",
     path: "/app-baners",
   },
-
+  {
+    icon: <ImageDown />,
+    name: "FAQs",
+    path: "/all-faqs",
+  },
+  {
+    icon: <ImageDown />,
+    name: "Doubts",
+    path: "/all-doubts",
+  },
   {
     name: "Pages",
     icon: <PageIcon />,
@@ -66,40 +68,39 @@ const navItems: NavItem[] = [
       { name: "About Us Page", path: "/about-us", pro: false },
       { name: "Privacy Policy", path: "/privacy-policy", pro: false },
       { name: "Terms & Condition", path: "/term-and-condition", pro: false },
-
     ],
   },
 ];
 
 const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
-    ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-    ],
-  },
+  // {
+  //   icon: <PieChartIcon />,
+  //   name: "Charts",
+  //   subItems: [
+  //     { name: "Line Chart", path: "/line-chart", pro: false },
+  //     { name: "Bar Chart", path: "/bar-chart", pro: false },
+  //   ],
+  // },
+  // {
+  //   icon: <BoxCubeIcon />,
+  //   name: "UI Elements",
+  //   subItems: [
+  //     { name: "Alerts", path: "/alerts", pro: false },
+  //     { name: "Avatar", path: "/avatars", pro: false },
+  //     { name: "Badge", path: "/badge", pro: false },
+  //     { name: "Buttons", path: "/buttons", pro: false },
+  //     { name: "Images", path: "/images", pro: false },
+  //     { name: "Videos", path: "/videos", pro: false },
+  //   ],
+  // },
+  // {
+  //   icon: <PlugInIcon />,
+  //   name: "Authentication",
+  //   subItems: [
+  //     { name: "Sign In", path: "/signin", pro: false },
+  //     { name: "Sign Up", path: "/signup", pro: false },
+  //   ],
+  // },
 ];
 
 const AppSidebar: React.FC = () => {
@@ -325,7 +326,7 @@ const AppSidebar: React.FC = () => {
               />
               <img
                 className="hidden dark:block  w-10"
-              src="./images/logo/logo.png"
+                src="./images/logo/logo.png"
                 alt="Logo"
                 width={150}
                 height={40}
@@ -378,7 +379,7 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
+        {/* {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null} */}
       </div>
     </aside>
   );

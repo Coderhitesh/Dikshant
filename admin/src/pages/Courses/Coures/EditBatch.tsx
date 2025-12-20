@@ -8,10 +8,17 @@ import Input from "../../../components/form/input/InputField";
 import TextArea from "../../../components/form/input/TextArea";
 import Form from "../../../components/form/Form";
 import Label from "../../../components/form/Label";
-import { Loader2, Upload, ArrowLeft, AlertCircle, Calculator, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  ArrowLeft,
+  AlertCircle,
+  Calculator,
+  ChevronDown,
+} from "lucide-react";
 
-const BATCH_API = "http://localhost:5001/api/batchs";
-const SUBJECTS_API = "http://localhost:5001/api/subjects";
+const BATCH_API = "https://www.dikapi.olyox.in/api/batchs";
+const SUBJECTS_API = "https://www.dikapi.olyox.in/api/subjects";
 
 interface Subject {
   id: number;
@@ -19,6 +26,8 @@ interface Subject {
   slug: string;
   description?: string;
 }
+
+type BatchStatus = "active" | "inactive";
 
 interface Batch {
   id: number;
@@ -32,7 +41,7 @@ interface Batch {
   endDate: string;
   registrationStartDate: string;
   registrationEndDate: string;
-  status: "active" | "inactive";
+  status: BatchStatus;
   shortDescription: string;
   longDescription: string;
   batchPrice: number;
@@ -59,7 +68,9 @@ const EditBatch = () => {
 
   const [isEmi, setIsEmi] = useState(false);
   const [emiMonths, setEmiMonths] = useState(3);
-  const [emiSchedule, setEmiSchedule] = useState<Array<{ month: number; amount: number }>>([]);
+  const [emiSchedule, setEmiSchedule] = useState<
+    Array<{ month: number; amount: number }>
+  >([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -69,7 +80,7 @@ const EditBatch = () => {
     endDate: "",
     registrationStartDate: "",
     registrationEndDate: "",
-    status: "active" as const,
+    status: "active",
     shortDescription: "",
     longDescription: "",
     batchPrice: 0,
@@ -81,7 +92,10 @@ const EditBatch = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
 
-  const finalPrice = formData.batchDiscountPrice > 0 ? formData.batchDiscountPrice : formData.batchPrice;
+  const finalPrice =
+    formData.batchDiscountPrice > 0
+      ? formData.batchDiscountPrice
+      : formData.batchPrice;
 
   // Auto-calculate EMI schedule
   useEffect(() => {
@@ -93,7 +107,8 @@ const EditBatch = () => {
     const monthlyAmount = Math.round(finalPrice / emiMonths);
     const schedule = Array.from({ length: emiMonths }, (_, i) => ({
       month: i + 1,
-      amount: i === emiMonths - 1 ? finalPrice - monthlyAmount * i : monthlyAmount,
+      amount:
+        i === emiMonths - 1 ? finalPrice - monthlyAmount * i : monthlyAmount,
     }));
 
     setEmiSchedule(schedule);
@@ -124,7 +139,7 @@ const EditBatch = () => {
         try {
           currentIds = JSON.parse(data.subjectId || "[]");
         } catch {
-          currentIds = data.subjects?.map(s => s.id) || [];
+          currentIds = data.subjects?.map((s) => s.id) || [];
         }
         setSelectedSubjectIds(currentIds);
 
@@ -150,7 +165,8 @@ const EditBatch = () => {
           setEmiMonths(data.emiSchedule.length);
         }
       } catch (err: any) {
-        const errorMsg = err.response?.data?.message || "Failed to load batch data";
+        const errorMsg =
+          err.response?.data?.message || "Failed to load batch data";
         setError(errorMsg);
         toast.error(errorMsg);
       } finally {
@@ -164,12 +180,12 @@ const EditBatch = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     if (!file.type.startsWith("image/")) {
       toast.error("Please select a valid image file");
       return;
     }
-    
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Image size must be less than 5MB");
       return;
@@ -208,7 +224,10 @@ const EditBatch = () => {
       data.append("longDescription", formData.longDescription);
       data.append("batchPrice", formData.batchPrice.toString());
       if (formData.batchDiscountPrice > 0) {
-        data.append("batchDiscountPrice", formData.batchDiscountPrice.toString());
+        data.append(
+          "batchDiscountPrice",
+          formData.batchDiscountPrice.toString()
+        );
       }
       data.append("gst", formData.gst.toString());
       if (formData.offerValidityDays > 0) {
@@ -244,7 +263,9 @@ const EditBatch = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[500px] gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
-        <p className="text-sm text-gray-600 dark:text-gray-400">Loading batch data...</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Loading batch data...
+        </p>
       </div>
     );
   }
@@ -284,7 +305,7 @@ const EditBatch = () => {
 
   return (
     <>
-      <PageMeta title={`Edit Batch - ${batch?.name}`} />
+      <PageMeta title={`Edit Batch - ${batch?.name}`} description="" />
       <PageBreadcrumb pageTitle={`Edit Batch - ${batch?.name}`} />
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -304,42 +325,60 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">Batch Name</Label>
+                  <Label className="text-sm">
+                    Batch Name
+                  </Label>
                   <Input
                     value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">Display Order</Label>
+                  <Label className="text-sm">
+                    Display Order
+                  </Label>
                   <Input
                     type="number"
                     value={formData.displayOrder}
-                    onChange={e => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 1 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        displayOrder: parseInt(e.target.value) || 1,
+                      })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
               </div>
 
               <div>
-                <Label required className="text-sm">Program ID</Label>
+                <Label  className="text-sm">
+                  Program ID
+                </Label>
                 <Input
                   type="number"
                   value={formData.programId}
-                  onChange={e => setFormData({ ...formData, programId: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, programId: e.target.value })
+                  }
                   className="text-sm"
-                  required
+                  
                 />
               </div>
             </div>
 
             {/* Subjects Multi-Select */}
             <div className="mb-6">
-              <Label required className="text-sm">
-                Subjects <span className="text-xs text-gray-500">({selectedSubjectIds.length} selected)</span>
+              <Label className="text-sm">
+                Subjects{" "}
+                <span className="text-xs text-gray-500">
+                  ({selectedSubjectIds.length} selected)
+                </span>
               </Label>
               <div className="relative">
                 <button
@@ -350,9 +389,18 @@ const EditBatch = () => {
                   <span className="truncate">
                     {selectedSubjectIds.length === 0
                       ? "Select subjects..."
-                      : selectedSubjectIds.map(id => allSubjects.find(s => s.id === id)?.name).filter(Boolean).join(", ")}
+                      : selectedSubjectIds
+                          .map(
+                            (id) => allSubjects.find((s) => s.id === id)?.name
+                          )
+                          .filter(Boolean)
+                          .join(", ")}
                   </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${subjectsDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      subjectsDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
                 {subjectsDropdownOpen && (
@@ -361,14 +409,18 @@ const EditBatch = () => {
                       <Input
                         placeholder="Search subjects..."
                         value={subjectSearch}
-                        onChange={e => setSubjectSearch(e.target.value)}
+                        onChange={(e) => setSubjectSearch(e.target.value)}
                         className="text-sm"
                       />
                     </div>
                     <div className="py-1">
                       {allSubjects
-                        .filter(s => s.name.toLowerCase().includes(subjectSearch.toLowerCase()))
-                        .map(subject => (
+                        .filter((s) =>
+                          s.name
+                            .toLowerCase()
+                            .includes(subjectSearch.toLowerCase())
+                        )
+                        .map((subject) => (
                           <label
                             key={subject.id}
                             className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer text-sm"
@@ -377,9 +429,9 @@ const EditBatch = () => {
                               type="checkbox"
                               checked={selectedSubjectIds.includes(subject.id)}
                               onChange={() => {
-                                setSelectedSubjectIds(prev =>
+                                setSelectedSubjectIds((prev) =>
                                   prev.includes(subject.id)
-                                    ? prev.filter(id => id !== subject.id)
+                                    ? prev.filter((id) => id !== subject.id)
                                     : [...prev, subject.id]
                                 );
                               }}
@@ -398,46 +450,68 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">Start Date</Label>
+                  <Label  className="text-sm">
+                    Start Date
+                  </Label>
                   <Input
                     type="date"
                     value={formData.startDate}
-                    onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, startDate: e.target.value })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">End Date</Label>
+                  <Label  className="text-sm">
+                    End Date
+                  </Label>
                   <Input
                     type="date"
                     value={formData.endDate}
-                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, endDate: e.target.value })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">Registration Start</Label>
+                  <Label  className="text-sm">
+                    Registration Start
+                  </Label>
                   <Input
                     type="date"
                     value={formData.registrationStartDate}
-                    onChange={e => setFormData({ ...formData, registrationStartDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        registrationStartDate: e.target.value,
+                      })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">Registration End</Label>
+                  <Label  className="text-sm">
+                    Registration End
+                  </Label>
                   <Input
                     type="date"
                     value={formData.registrationEndDate}
-                    onChange={e => setFormData({ ...formData, registrationEndDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        registrationEndDate: e.target.value,
+                      })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
               </div>
@@ -445,10 +519,14 @@ const EditBatch = () => {
 
             {/* Status */}
             <div className="mb-6">
-              <Label required className="text-sm">Status</Label>
+              <Label  className="text-sm">
+                Status
+              </Label>
               <select
                 value={formData.status}
-                onChange={e => setFormData({ ...formData, status: e.target.value as any })}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value as any })
+                }
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
               >
                 <option value="active">Active</option>
@@ -459,20 +537,32 @@ const EditBatch = () => {
             {/* Descriptions */}
             <div className="space-y-4 mb-6">
               <div>
-                <Label required className="text-sm">Short Description</Label>
+                <Label  className="text-sm">
+                  Short Description
+                </Label>
                 <TextArea
                   value={formData.shortDescription}
-                  onChange={e => setFormData({ ...formData, shortDescription: e.target.value })}
+                  onChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      shortDescription: value,
+                    })
+                  }
                   rows={2}
                   className="text-sm"
-                  required
+                  
                 />
               </div>
               <div>
                 <Label className="text-sm">Long Description</Label>
                 <TextArea
                   value={formData.longDescription}
-                  onChange={e => setFormData({ ...formData, longDescription: e.target.value })}
+                  onChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      longDescription: value,
+                    })
+                  }
                   rows={3}
                   className="text-sm"
                 />
@@ -483,13 +573,20 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label required className="text-sm">Price (₹)</Label>
+                  <Label  className="text-sm">
+                    Price (₹)
+                  </Label>
                   <Input
                     type="number"
                     value={formData.batchPrice}
-                    onChange={e => setFormData({ ...formData, batchPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        batchPrice: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
@@ -497,7 +594,12 @@ const EditBatch = () => {
                   <Input
                     type="number"
                     value={formData.batchDiscountPrice}
-                    onChange={e => setFormData({ ...formData, batchDiscountPrice: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        batchDiscountPrice: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     className="text-sm"
                   />
                 </div>
@@ -506,7 +608,12 @@ const EditBatch = () => {
                   <Input
                     type="number"
                     value={formData.gst}
-                    onChange={e => setFormData({ ...formData, gst: parseFloat(e.target.value) || 18 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        gst: parseFloat(e.target.value) || 18,
+                      })
+                    }
                     className="text-sm"
                   />
                 </div>
@@ -517,7 +624,12 @@ const EditBatch = () => {
                 <Input
                   type="number"
                   value={formData.offerValidityDays}
-                  onChange={e => setFormData({ ...formData, offerValidityDays: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      offerValidityDays: parseInt(e.target.value) || 0,
+                    })
+                  }
                   className="text-sm"
                 />
               </div>
@@ -530,10 +642,13 @@ const EditBatch = () => {
                   type="checkbox"
                   id="isEmi"
                   checked={isEmi}
-                  onChange={e => setIsEmi(e.target.checked)}
+                  onChange={(e) => setIsEmi(e.target.checked)}
                   className="w-4 h-4 text-indigo-600 rounded"
                 />
-                <Label htmlFor="isEmi" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="isEmi"
+                  className="text-sm font-semibold cursor-pointer flex items-center gap-2"
+                >
                   <Calculator className="w-4 h-4" />
                   Enable EMI Payment
                 </Label>
@@ -546,36 +661,54 @@ const EditBatch = () => {
                       <Label className="text-sm">EMI Tenure</Label>
                       <select
                         value={emiMonths}
-                        onChange={e => setEmiMonths(parseInt(e.target.value))}
+                        onChange={(e) => setEmiMonths(parseInt(e.target.value))}
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
                       >
-                        {[2,3,4,5,6,7,8,9, 12, 18, 24].map(m => (
-                          <option key={m} value={m}>{m} months</option>
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 12, 18, 24].map((m) => (
+                          <option key={m} value={m}>
+                            {m} months
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <Label className="text-sm">Monthly EMI</Label>
                       <div className="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-semibold text-indigo-600">
-                        ₹{emiSchedule.length > 0 ? Math.round(finalPrice / emiMonths).toLocaleString("en-IN") : 0}
+                        ₹
+                        {emiSchedule.length > 0
+                          ? Math.round(finalPrice / emiMonths).toLocaleString(
+                              "en-IN"
+                            )
+                          : 0}
                       </div>
                     </div>
                   </div>
 
                   {emiSchedule.length > 0 && (
                     <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
-                      <h4 className="text-sm font-semibold mb-3">EMI Schedule</h4>
+                      <h4 className="text-sm font-semibold mb-3">
+                        EMI Schedule
+                      </h4>
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {emiSchedule.map((item, i) => (
-                          <div key={i} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">Month {item.month}</span>
-                            <span className="font-semibold">₹{item.amount.toLocaleString("en-IN")}</span>
+                          <div
+                            key={i}
+                            className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm"
+                          >
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Month {item.month}
+                            </span>
+                            <span className="font-semibold">
+                              ₹{item.amount.toLocaleString("en-IN")}
+                            </span>
                           </div>
                         ))}
                       </div>
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800 flex justify-between text-sm font-bold">
                         <span>Total</span>
-                        <span className="text-indigo-600">₹{totalEmi.toLocaleString("en-IN")}</span>
+                        <span className="text-indigo-600">
+                          ₹{totalEmi.toLocaleString("en-IN")}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -608,7 +741,9 @@ const EditBatch = () => {
                     className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition"
                   >
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Click to upload image</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Click to upload image
+                    </span>
                   </label>
                 )}
                 <input
@@ -619,7 +754,9 @@ const EditBatch = () => {
                   onChange={handleImageChange}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Maximum file size: 5MB</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Maximum file size: 5MB
+              </p>
             </div>
 
             {/* Submit Buttons */}

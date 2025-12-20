@@ -9,16 +9,28 @@ import Form from "../../../components/form/Form";
 import Label from "../../../components/form/Label";
 import { API_URL } from "../../../constant/constant";
 import { Loader2, Upload, Image as ImageIcon, ArrowLeft } from "lucide-react";
+const COURSE_TYPES = ["Offline", "Online", "Recorded", "Live"] as const;
+
+type CourseType = (typeof COURSE_TYPES)[number];
+
+interface ProgramFormData {
+  name: string;
+  slug: string;
+  description: string;
+  typeOfCourse: CourseType;
+  position: string;
+}
 
 const AddProgram = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProgramFormData>({
     name: "",
     slug: "",
-    position:"",
-    description: "",       // <-- MUST be empty string (never null)
+    description: "",
+    typeOfCourse: "Online", // ✅ backend default
+    position: "",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -81,6 +93,7 @@ const AddProgram = () => {
       data.append("name", formData.name);
       data.append("slug", formData.slug);
       data.append("description", formData.description);
+      data.append("typeOfCourse", formData.typeOfCourse);
       data.append("imageUrl", imageFile);
 
       await axios.post(`${API_URL}/programs`, data, {
@@ -111,7 +124,9 @@ const AddProgram = () => {
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Add New Program</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Add New Program
+              </h1>
               <p className="text-gray-600 mt-1">
                 Fill in the details to create a new program
               </p>
@@ -130,49 +145,66 @@ const AddProgram = () => {
           <Form onSubmit={handleSubmit}>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <Label required>Program Name</Label>
+                <Label>Program Name</Label>
                 <Input
                   value={formData.name}
                   onChange={handleNameChange}
                   placeholder="e.g. IAS Foundation 2025"
-                  required
-                  autoFocus
                 />
               </div>
 
               <div>
-                <Label required>Slug</Label>
+                <Label>Slug</Label>
                 <Input
                   value={formData.slug}
                   onChange={(e) =>
                     setFormData({ ...formData, slug: e.target.value })
                   }
                   placeholder="ias-foundation-2025"
-                  required
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Auto-generated from the name. You can modify it.
                 </p>
               </div>
             </div>
-             <div>
-                <Label required>Position</Label>
-                <Input
-                  value={formData.position}
-                  onChange={(e) =>
-                    setFormData({ ...formData, position: e.target.value })
-                  }
-                  placeholder="Place What u Show eg 1,2,3,4 ....."
-            
-                />
-               
-              </div>
+            <div>
+              <Label>Type Of Course</Label>
+
+              <select
+                value={formData.typeOfCourse}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    typeOfCourse: e.target.value as CourseType,
+                  })
+                }
+                className="w-full rounded-lg border px-4 py-2.5 text-sm shadow-theme-xs focus:outline-hidden"
+                required
+              >
+                {COURSE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label>Position</Label>
+              <Input
+                value={formData.position}
+                onChange={(e) =>
+                  setFormData({ ...formData, position: e.target.value })
+                }
+                placeholder="Place What u Show eg 1,2,3,4 ....."
+              />
+            </div>
 
             {/* Description */}
             <div className="mt-6">
               <Label>Description</Label>
               <textarea
-                value={formData.description ?? ""} 
+                value={formData.description ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
@@ -184,7 +216,7 @@ const AddProgram = () => {
 
             {/* Image Upload */}
             <div className="mt-8">
-              <Label required>Program Image</Label>
+              <Label>Program Image</Label>
 
               <div className="mt-3">
                 {imagePreview ? (
@@ -213,7 +245,9 @@ const AddProgram = () => {
                     <p className="text-sm font-medium text-gray-600 mt-3">
                       Click to upload image
                     </p>
-                    <p className="text-xs text-gray-500">JPG, PNG, WEBP up to 5MB</p>
+                    <p className="text-xs text-gray-500">
+                      JPG, PNG, WEBP up to 5MB
+                    </p>
                   </label>
                 )}
 

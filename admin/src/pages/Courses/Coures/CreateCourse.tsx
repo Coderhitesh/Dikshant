@@ -20,8 +20,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-const BATCH_API = "http://localhost:5001/api/batchs";
-const SUBJECTS_API = "http://localhost:5001/api/subjects";
+const BATCH_API = "https://www.dikapi.olyox.in/api/batchs";
+const SUBJECTS_API = "https://www.dikapi.olyox.in/api/subjects";
 
 interface Subject {
   id: number;
@@ -210,7 +210,7 @@ const CreateBatch = () => {
 
   return (
     <>
-      <PageMeta title="Create New Batch" />
+      <PageMeta title="Create New Batch" description="Create New Batch" />
       <PageBreadcrumb pageTitle="Create New Batch" />
 
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -230,7 +230,7 @@ const CreateBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Batch Name
                   </Label>
                   <Input
@@ -238,12 +238,10 @@ const CreateBatch = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="text-sm"
                     placeholder="e.g., UPSC 2025 Batch"
-                    required
-                    autoFocus
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Display Order
                   </Label>
                   <Input
@@ -257,13 +255,13 @@ const CreateBatch = () => {
                     }
                     className="text-sm"
                     min="1"
-                    required
+                    
                   />
                 </div>
               </div>
 
               <div>
-                <Label required className="text-sm">
+                <Label className="text-sm">
                   Program ID
                 </Label>
                 <Input
@@ -273,14 +271,14 @@ const CreateBatch = () => {
                   className="text-sm"
                   placeholder="Enter program ID"
                   min="1"
-                  required
+                  
                 />
               </div>
             </div>
 
             {/* Subjects Multi-Select */}
             <div className="mb-6">
-              <Label required className="text-sm">
+              <Label className="text-sm">
                 Subjects{" "}
                 <span className="text-xs text-gray-500">
                   ({selectedSubjectIds.length} selected)
@@ -410,7 +408,7 @@ const CreateBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Start Date
                   </Label>
                   <Input
@@ -420,11 +418,11 @@ const CreateBatch = () => {
                       setFormData({ ...formData, startDate: e.target.value })
                     }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">
+                  <Label  className="text-sm">
                     End Date
                   </Label>
                   <Input
@@ -432,14 +430,14 @@ const CreateBatch = () => {
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Registration Start
                   </Label>
                   <Input
@@ -449,11 +447,11 @@ const CreateBatch = () => {
                       setFormData({ ...formData, registrationStartDate: e.target.value })
                     }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Registration End
                   </Label>
                   <Input
@@ -463,7 +461,7 @@ const CreateBatch = () => {
                       setFormData({ ...formData, registrationEndDate: e.target.value })
                     }
                     className="text-sm"
-                    required
+                    
                   />
                 </div>
               </div>
@@ -471,7 +469,7 @@ const CreateBatch = () => {
 
             {/* Status */}
             <div className="mb-6">
-              <Label required className="text-sm">
+              <Label  className="text-sm">
                 Status
               </Label>
               <select
@@ -490,26 +488,26 @@ const CreateBatch = () => {
             {/* Descriptions */}
             <div className="space-y-4 mb-6">
               <div>
-                <Label required className="text-sm">
+                <Label className="text-sm">
                   Short Description
                 </Label>
                 <TextArea
                   value={formData.shortDescription}
-                  onChange={(e) =>
-                    setFormData({ ...formData, shortDescription: e.target.value })
-                  }
+                  onChange={(value) =>
+    setFormData({ ...formData, shortDescription: value })
+  }
                   rows={2}
                   className="text-sm"
                   placeholder="Brief description of the batch"
-                  required
+                  
                 />
               </div>
               <div>
                 <Label className="text-sm">Long Description</Label>
                 <TextArea
                   value={formData.longDescription}
-                  onChange={(e) =>
-                    setFormData({ ...formData, longDescription: e.target.value })
+                  onChange={(value) =>
+                     setFormData({ ...formData, longDescription: value })
                   }
                   rows={3}
                   className="text-sm"
@@ -522,7 +520,7 @@ const CreateBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label required className="text-sm">
+                  <Label className="text-sm">
                     Price (₹)
                   </Label>
                   <Input
@@ -536,8 +534,7 @@ const CreateBatch = () => {
                     }
                     className="text-sm"
                     min="0"
-                    step="0.01"
-                    required
+                    
                   />
                 </div>
                 <div>
@@ -553,7 +550,6 @@ const CreateBatch = () => {
                     }
                     className="text-sm"
                     min="0"
-                    step="0.01"
                   />
                 </div>
                 <div>
@@ -567,7 +563,6 @@ const CreateBatch = () => {
                     className="text-sm"
                     min="0"
                     max="100"
-                    step="0.01"
                   />
                 </div>
               </div>
@@ -670,7 +665,7 @@ const CreateBatch = () => {
 
             {/* Image Upload */}
             <div className="mb-6">
-              <Label required className="text-sm">
+              <Label className="text-sm">
                 Batch Image
               </Label>
               <div className="mt-2">
