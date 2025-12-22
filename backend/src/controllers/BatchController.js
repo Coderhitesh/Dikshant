@@ -8,7 +8,6 @@ const { generateSlug } = require("../utils/helpers");
 const { Op } = Sequelize;
 
 class BatchController {
-
   // =========================
   // CREATE
   // =========================
