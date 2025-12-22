@@ -136,11 +136,20 @@ const EditBatch = () => {
         setImagePreview(data.imageUrl || "");
 
         let currentIds: number[] = [];
-        try {
-          currentIds = JSON.parse(data.subjectId || "[]");
-        } catch {
+
+        if (Array.isArray(data.subjectId)) {
+          currentIds = data.subjectId;
+        } else if (typeof data.subjectId === "string") {
+          try {
+            const parsed = JSON.parse(data.subjectId);
+            currentIds = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            currentIds = [];
+          }
+        } else {
           currentIds = data.subjects?.map((s) => s.id) || [];
         }
+
         setSelectedSubjectIds(currentIds);
 
         setFormData({
@@ -325,22 +334,17 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm">
-                    Batch Name
-                  </Label>
+                  <Label className="text-sm">Batch Name</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
                 <div>
-                  <Label className="text-sm">
-                    Display Order
-                  </Label>
+                  <Label className="text-sm">Display Order</Label>
                   <Input
                     type="number"
                     value={formData.displayOrder}
@@ -351,15 +355,12 @@ const EditBatch = () => {
                       })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
               </div>
 
               <div>
-                <Label  className="text-sm">
-                  Program ID
-                </Label>
+                <Label className="text-sm">Program ID</Label>
                 <Input
                   type="number"
                   value={formData.programId}
@@ -367,7 +368,6 @@ const EditBatch = () => {
                     setFormData({ ...formData, programId: e.target.value })
                   }
                   className="text-sm"
-                  
                 />
               </div>
             </div>
@@ -387,14 +387,17 @@ const EditBatch = () => {
                   className="w-full px-3 py-2 text-sm text-left border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 flex justify-between items-center hover:border-gray-400 dark:hover:border-gray-600 transition"
                 >
                   <span className="truncate">
-                    {selectedSubjectIds.length === 0
+                    {Array.isArray(selectedSubjectIds) &&
+                    selectedSubjectIds.length === 0
                       ? "Select subjects..."
-                      : selectedSubjectIds
+                      : Array.isArray(selectedSubjectIds)
+                      ? selectedSubjectIds
                           .map(
                             (id) => allSubjects.find((s) => s.id === id)?.name
                           )
                           .filter(Boolean)
-                          .join(", ")}
+                          .join(", ")
+                      : "Select subjects..."}
                   </span>
                   <ChevronDown
                     className={`w-4 h-4 transition-transform ${
@@ -450,9 +453,7 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label  className="text-sm">
-                    Start Date
-                  </Label>
+                  <Label className="text-sm">Start Date</Label>
                   <Input
                     type="date"
                     value={formData.startDate}
@@ -460,13 +461,10 @@ const EditBatch = () => {
                       setFormData({ ...formData, startDate: e.target.value })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
                 <div>
-                  <Label  className="text-sm">
-                    End Date
-                  </Label>
+                  <Label className="text-sm">End Date</Label>
                   <Input
                     type="date"
                     value={formData.endDate}
@@ -474,16 +472,13 @@ const EditBatch = () => {
                       setFormData({ ...formData, endDate: e.target.value })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label  className="text-sm">
-                    Registration Start
-                  </Label>
+                  <Label className="text-sm">Registration Start</Label>
                   <Input
                     type="date"
                     value={formData.registrationStartDate}
@@ -494,13 +489,10 @@ const EditBatch = () => {
                       })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
                 <div>
-                  <Label  className="text-sm">
-                    Registration End
-                  </Label>
+                  <Label className="text-sm">Registration End</Label>
                   <Input
                     type="date"
                     value={formData.registrationEndDate}
@@ -511,7 +503,6 @@ const EditBatch = () => {
                       })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
               </div>
@@ -519,9 +510,7 @@ const EditBatch = () => {
 
             {/* Status */}
             <div className="mb-6">
-              <Label  className="text-sm">
-                Status
-              </Label>
+              <Label className="text-sm">Status</Label>
               <select
                 value={formData.status}
                 onChange={(e) =>
@@ -537,9 +526,7 @@ const EditBatch = () => {
             {/* Descriptions */}
             <div className="space-y-4 mb-6">
               <div>
-                <Label  className="text-sm">
-                  Short Description
-                </Label>
+                <Label className="text-sm">Short Description</Label>
                 <TextArea
                   value={formData.shortDescription}
                   onChange={(value) =>
@@ -550,7 +537,6 @@ const EditBatch = () => {
                   }
                   rows={2}
                   className="text-sm"
-                  
                 />
               </div>
               <div>
@@ -573,9 +559,7 @@ const EditBatch = () => {
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <Label  className="text-sm">
-                    Price (₹)
-                  </Label>
+                  <Label className="text-sm">Price (₹)</Label>
                   <Input
                     type="number"
                     value={formData.batchPrice}
@@ -586,7 +570,6 @@ const EditBatch = () => {
                       })
                     }
                     className="text-sm"
-                    
                   />
                 </div>
                 <div>
