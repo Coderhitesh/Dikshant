@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 const API_URL = "http://localhost:5001/api/videocourses";
+const BATCHS_API = "http://localhost:5001/api/batchs";
 const SUBJECTS_API = "http://localhost:5001/api/subjects";
 
 /* ================= TYPES ================= */
@@ -25,6 +26,7 @@ const SUBJECTS_API = "http://localhost:5001/api/subjects";
 interface Subject {
   id: number;
   name: string;
+  
 }
 
 type VideoSource = "youtube" | "s3" | "vimeo";
@@ -41,7 +43,7 @@ interface Video {
   isDemo: boolean;
   status: "active" | "inactive";
   batchId: number;
-  programId: number;
+  // programId: number;
 }
 
 interface VideoForm {
@@ -59,6 +61,8 @@ interface VideoForm {
 const CourseVideos = () => {
   const { id } = useParams<{ id: string }>();
   const batchId = id ? Number(id) : null;
+
+  console.log("batchId",batchId)
 
   const [videos, setVideos] = useState<Video[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -96,11 +100,13 @@ const CourseVideos = () => {
           axios.get<{ success: boolean; data: Video[] }>(
             `${API_URL}/batch/${batchId}`
           ),
-          axios.get<Subject[]>(SUBJECTS_API),
+          axios.get<Subject[]>(`${BATCHS_API}/${batchId}`),
         ]);
+        console.log("subjectsRes",subjectsRes)
         setVideos(videosRes.data.success ? videosRes.data.data : []);
-        setSubjects(subjectsRes.data);
+        setSubjects(subjectsRes.data.subjects || []);
       } catch {
+        console.log("Failed to load data")
         toast.error("Failed to load data");
       } finally {
         setLoading(false);

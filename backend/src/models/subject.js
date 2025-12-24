@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
   Subject.associate = function (models) {
     Subject.hasMany(models.MCQQuestion, { foreignKey: 'subjectId', as: 'mcqQuestions' });
     Subject.belongsToMany(models.Batch, { through: 'batch_subjects' });
-    
+
   };
 
 

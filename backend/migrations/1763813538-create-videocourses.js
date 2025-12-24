@@ -56,16 +56,7 @@ module.exports = {
         defaultValue: "active"
       },
 
-      programId: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: 'programs',
-          key: 'id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL'
-      },
-
+      
       createdAt: Sequelize.DATE,
       updatedAt: Sequelize.DATE
     });

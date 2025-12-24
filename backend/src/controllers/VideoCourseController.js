@@ -18,7 +18,6 @@ class VideoCourseController {
         "url",
         "batchId",
         "subjectId",
-        "programId",
       ];
 
       for (const field of requiredFields) {
@@ -36,10 +35,9 @@ class VideoCourseController {
         url: req.body.url,
         batchId: Number(req.body.batchId),
         subjectId: Number(req.body.subjectId),
-        programId: Number(req.body.programId),
         isDownloadable: req.body.isDownloadable === true,
         isDemo: req.body.isDemo === true,
-        status: req.body.status === true,
+        status: req.body.status === true? "active" : "inactive",
         imageUrl: null,
       };
 
@@ -136,6 +134,7 @@ class VideoCourseController {
         data: items,
       });
     } catch (error) {
+      console.log(error)
       return res.status(500).json({ success: false, message: "Server error" });
     }
   }

@@ -155,6 +155,7 @@ class BatchController {
       //   return res.json(JSON.parse(cached));
       // }
 
+
       const item = await Batch.findByPk(id, {
         include: [
           {
@@ -169,21 +170,47 @@ class BatchController {
         return res.status(404).json({ message: "Batch not found" });
       }
 
+      const { Op } = require("sequelize");
+
       let subjectIds = [];
+
       try {
-        subjectIds = JSON.parse(item.subjectId || "[]");
-      } catch {
+        let raw = item.subjectId;
+
+        // first parse
+        if (typeof raw === "string") {
+          raw = JSON.parse(raw);   // "[10,11]"
+        }
+
+        // second parse
+        if (typeof raw === "string") {
+          raw = JSON.parse(raw);   // [10,11]
+        }
+
+        if (Array.isArray(raw)) {
+          subjectIds = raw.map(Number);
+        }
+      } catch (err) {
         subjectIds = [];
       }
 
-      const subjectsList = await Subject.findAll({
-        where: { id: subjectIds },
-        attributes: ["id", "name", "slug", "description"],
-      });
+      console.log("FINAL subjectIds:", subjectIds);
 
+      const subjectsList = subjectIds.length
+        ? await Subject.findAll({
+          where: {
+            id: { [Op.in]: subjectIds }
+          },attributes: ["id", "name"],
+        })
+        : [];
+
+      const subjectNames = subjectsList.map(sub => ({
+        id: sub.id,
+        name: sub.name,
+      }));
       const response = {
         ...item.toJSON(),
-        subjects: subjectsList,
+        subjects: subjectNames,
       };
 
       // await redis.set(cacheKey, JSON.stringify(response), "EX", 300);
