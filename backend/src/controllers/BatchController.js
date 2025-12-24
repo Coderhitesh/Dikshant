@@ -40,6 +40,7 @@ class BatchController {
         isEmi: req.body.isEmi || false,
         emiTotal: req.body.emiTotal || null,
         emiSchedule: req.body.emiSchedule || null,
+        category: req.body.category,
       };
 
       const item = await Batch.create(payload);

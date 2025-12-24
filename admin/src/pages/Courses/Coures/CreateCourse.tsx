@@ -70,6 +70,7 @@ const CreateBatch = () => {
     batchDiscountPrice: 0,
     gst: 18,
     offerValidityDays: 0,
+    category: "",
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -182,6 +183,12 @@ const CreateBatch = () => {
       return;
     }
 
+    if (!formData.category) {
+  toast.error("Please select a batch category");
+  return;
+}
+
+
     setSubmitting(true);
     const loadingToast = toast.loading("Creating batch...");
 
@@ -190,6 +197,7 @@ const CreateBatch = () => {
       data.append("name", formData.name.trim());
       data.append("displayOrder", formData.displayOrder.toString());
       data.append("programId", formData.programId);
+      data.append("category", formData.category);
       data.append("subjectId", JSON.stringify(selectedSubjectIds));
       data.append("startDate", formData.startDate);
       data.append("endDate", formData.endDate);
@@ -199,6 +207,7 @@ const CreateBatch = () => {
       data.append("shortDescription", formData.shortDescription.trim());
       data.append("longDescription", formData.longDescription.trim());
       data.append("batchPrice", formData.batchPrice.toString());
+
 
       if (formData.batchDiscountPrice > 0) {
         data.append(
@@ -298,11 +307,27 @@ const CreateBatch = () => {
                   className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
                 >
                   <option value="">Select Program</option>
-                  {programs && programs.map((program) => (
-                    <option key={program.id} value={program.id}>
-                      {program.name}
-                    </option>
-                  ))}
+                  {programs &&
+                    programs.map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {program.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <Label className="text-sm">Batch Category</Label>
+                <select
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData({ ...formData, category: e.target.value })
+                  }
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
+                >
+                  <option value="">Select Category</option>
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                  <option value="recorded">Recorded</option>
                 </select>
               </div>
             </div>
