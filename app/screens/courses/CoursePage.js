@@ -26,9 +26,9 @@ const LIMIT_OPTIONS = [10, 20, 50];
 export default function CoursePage() {
   const navigation = useNavigation();
   const route = useRoute()
-  const {filter} = route.params || ""
+  const { filter } = route.params || ""
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMode, setSelectedMode] = useState(filter ? filter:"all");
+  const [selectedMode, setSelectedMode] = useState(filter ? filter : "all");
   const [priceRange, setPriceRange] = useState("all");
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(1);
@@ -112,8 +112,12 @@ export default function CoursePage() {
     return (
       <TouchableOpacity
         style={styles.card}
+
         onPress={() =>
-          navigation.navigate("CourseDetail", { batchId: item.id })
+          navigation.navigate("CourseDetail", {
+            courseId: item.id,
+            batchData: item,
+          })
         }
         activeOpacity={0.8}
       >
@@ -123,22 +127,22 @@ export default function CoursePage() {
             style={styles.image}
             resizeMode="cover"
           />
-          
+
           {discountPercent > 0 && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>{discountPercent}% OFF</Text>
             </View>
           )}
-          
+
           <View style={styles.categoryBadge}>
-            <Feather 
-              name={getFilterIcon(item.category)} 
-              size={10} 
-              color="#ffffff" 
+            <Feather
+              name={getFilterIcon(item.category)}
+              size={10}
+              color="#ffffff"
             />
             <Text style={styles.categoryText}>
-              {item.category === "recorded" ? "Recorded" : 
-               item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+              {item.category === "recorded" ? "Recorded" :
+                item.category.charAt(0).toUpperCase() + item.category.slice(1)}
             </Text>
           </View>
         </View>
@@ -148,7 +152,7 @@ export default function CoursePage() {
           <Text style={styles.title} numberOfLines={2}>
             {item.name}
           </Text>
-          
+
           <View style={styles.metaRow}>
             <View style={styles.ratingContainer}>
               <Feather name="star" size={10} color="#fbbf24" />
@@ -212,8 +216,8 @@ export default function CoursePage() {
 
         {/* Filter Tabs */}
         <View style={styles.filtersSection}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filtersContainer}
           >
@@ -232,10 +236,10 @@ export default function CoursePage() {
                 onPress={() => setSelectedMode(filter.id)}
                 activeOpacity={0.7}
               >
-                <Feather 
-                  name={filter.icon} 
-                  size={14} 
-                  color={selectedMode === filter.id ? "#ffffff" : "#6b7280"} 
+                <Feather
+                  name={filter.icon}
+                  size={14}
+                  color={selectedMode === filter.id ? "#ffffff" : "#6b7280"}
                 />
                 <Text style={[
                   styles.filterTabText,
@@ -245,7 +249,7 @@ export default function CoursePage() {
                 </Text>
               </TouchableOpacity>
             ))}
-            
+
             {hasFilters && (
               <TouchableOpacity style={styles.clearFilter} onPress={clearFilters}>
                 <Feather name="x" size={14} color="#ef4444" />

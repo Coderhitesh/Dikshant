@@ -7,7 +7,12 @@ const cors = require('cors');
 const redis = require('./config/redis');
 const app = express();
 
-app.use(cors('*'))
+
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"],
+  credentials: true
+}))
 app.use(bodyParser.json({limit: '10mb'}));
 app.use(bodyParser.urlencoded({ extended: true }));
 

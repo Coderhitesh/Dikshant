@@ -17,31 +17,56 @@ import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import * as Application from "expo-application";
 import { useSettings } from "../hooks/useSettings";
-import { getBadgeCount } from "../utils/permissions";
+import axios from "axios";
+import { API_URL_LOCAL_ENDPOINT } from "../constant/api";
+
 const { width, height } = Dimensions.get("window");
 const SIDEBAR_WIDTH = width * 0.85;
+const API_BASE = API_URL_LOCAL_ENDPOINT;
 
 export default function Header() {
-  const { logout } = useAuthStore();
-  const [count, setCount] = useState(0);
+  const { logout, token } = useAuthStore(); // token added
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [activeRoute, setActiveRoute] = useState("Home");
   const sidebarAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const navigation = useNavigation();
   const { settings, refetch } = useSettings();
+
   const triggerHaptic = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (e) {}
   };
 
+  // Fetch unread notification count
+  const fetchUnreadCount = async () => {
+    if (!token) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_BASE}/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        setUnreadCount(res.data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.log("Unread count fetch error:", error);
+      setUnreadCount(0);
+    }
+  };
+
+  // Fetch on mount and when header visible
   useEffect(() => {
-    async () => {
-      const countN = await getBadgeCount();
-      setCount(countN);
-    };
-  }, []);
+    fetchUnreadCount();
+    // Optional: poll every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const openSidebar = () => {
     refetch();
     triggerHaptic();
@@ -117,9 +142,13 @@ export default function Header() {
             }}
           >
             <Ionicons name="notifications-outline" size={22} color="#0f172a" />
-            <View style={styles.notificationBadge}>
-              <Text style={styles.badgeText}>{count}</Text>
-            </View>
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -238,7 +267,7 @@ export default function Header() {
               App Version {Application.nativeApplicationVersion}
             </Text>
             <Text style={styles.copyrightText}>
-              © {new Date().getFullYear()} {settings?.appName || "Dikshant ias"}
+              © {new Date().getFullYear()} {settings?.appName || "Dikshant IAS"}
               . All rights reserved.
             </Text>
           </View>
@@ -266,7 +295,6 @@ const menuItems = {
 };
 
 const styles = StyleSheet.create({
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -303,11 +331,12 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     backgroundColor: "#ef4444",
-    width: 18,
+    minWidth: 18,
     height: 18,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 4,
     borderWidth: 2,
     borderColor: "#fff",
   },
@@ -322,14 +351,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
   },
 
-  // Overlay
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 999,
   },
 
-  // Sidebar
   sidebar: {
     position: "absolute",
     top: 0,
@@ -349,103 +376,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 
-  // Profile Section
-  profileSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  closeBtn: {
-    alignSelf: "flex-end",
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: "#f8fafc",
-    marginBottom: 16,
-  },
-  profileCard: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    position: "relative",
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-    borderColor: "#6366f1",
-  },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#10b981",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0f172a",
-    marginBottom: 2,
-  },
-  userEmail: {
-    fontSize: 13,
-    color: "#64748b",
-  },
-  editProfileBtn: {
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: "#eef2ff",
-  },
-
-  // Quick Stats
-  statsContainer: {
-    flexDirection: "row",
-    marginHorizontal: 20,
-    marginBottom: 24,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#f1f5f9",
-  },
-  statBox: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0f172a",
-    marginTop: 6,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#64748b",
-    fontWeight: "600",
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: "#f1f5f9",
-  },
-
-  // Sections
   navigationSection: {
-    marginBottom: 24,
-  },
-  resourcesSection: {
     marginBottom: 24,
   },
   settingsSection: {
@@ -461,7 +392,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Menu Items
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -508,7 +438,6 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 
-  // Logout Button
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -528,7 +457,6 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 
-  // Footer
   sidebarFooter: {
     paddingHorizontal: 20,
     alignItems: "center",

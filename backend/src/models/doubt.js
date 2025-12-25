@@ -28,10 +28,8 @@ module.exports = (sequelize, DataTypes) => {
       // 📝 Doubt content
       subject: {
         type: DataTypes.STRING(255),
-        allowNull: false,
-        validate: {
-          notEmpty: true,
-        },
+        allowNull: true,
+       
       },
 
       question: {

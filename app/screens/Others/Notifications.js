@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,87 +6,134 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Animated,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import Layout from '../../components/layout';
-import * as Haptics from 'expo-haptics';
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import axios from "axios";
+import Layout from "../../components/layout";
+import { useAuthStore } from "../../stores/auth.store";
+import { colors } from "../../constant/color";
+import { API_URL_LOCAL_ENDPOINT } from "../../constant/api";
+
+const API_BASE = API_URL_LOCAL_ENDPOINT;
 
 export default function Notifications() {
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'unread', 'read'
+  const { token } = useAuthStore();
+  const [activeTab, setActiveTab] = useState("all"); // 'all', 'unread', 'read'
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const triggerHaptic = () => {
+  // Fetch notifications
+  const fetchNotifications = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) {}
+      const res = await axios.get(`${API_BASE}/notifications/my`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.data.success) {
+        setNotifications(res.data.data);
+        setUnreadCount(res.data.data.filter((n) => !n.isRead).length);
+      }
+    } catch (error) {
+      console.error("Fetch notifications error:", error.response.data);
+      Alert.alert("Error", "Failed to load notifications");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
+  // Fetch unread count (for badge)
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        setUnreadCount(res.data.unreadCount);
+      }
+    } catch (error) {
+      console.error("Unread count error:", error);
+    }
+  };
+
+  // Mark all as read
+  const markAllAsRead = async () => {
+    try {
+      await axios.post(
+        `${API_BASE}/notifications/mark-all-read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.error("Mark all read error:", error);
+    }
+  };
+
+  // On refresh
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    fetchNotifications();
+    fetchUnreadCount();
   };
 
+  useEffect(() => {
+    if (token) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [token]);
+
   const handleTabChange = (tab) => {
-    triggerHaptic();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveTab(tab);
   };
 
-  const markAsRead = (id) => {
-    triggerHaptic();
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
-  };
-
-  const markAllAsRead = () => {
-    triggerHaptic();
-    setNotifications((prev) =>
-      prev.map((notif) => ({ ...notif, read: true }))
-    );
-  };
-
-  const deleteNotification = (id) => {
-    triggerHaptic();
-    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-  };
-
   const filteredNotifications = notifications.filter((notif) => {
-    if (activeTab === 'unread') return !notif.read;
-    if (activeTab === 'read') return notif.read;
+    if (activeTab === "unread") return !notif.isRead;
+    if (activeTab === "read") return notif.isRead;
     return true;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
   const getNotificationIcon = (type) => {
-    const iconMap = {
-      course: 'book-open',
-      test: 'file-text',
-      achievement: 'award',
-      system: 'bell',
-      payment: 'credit-card',
-      update: 'info',
+    const map = {
+      course_enrollment: "book-open",
+      scholarship_applied: "file-text",
+      scholarship_status: "award",
+      admin_broadcast: "megaphone",
+      general: "bell",
     };
-    return iconMap[type] || 'bell';
+    return map[type] || "bell";
   };
 
   const getNotificationColor = (type) => {
-    const colorMap = {
-      course: '#6366f1',
-      test: '#f59e0b',
-      achievement: '#10b981',
-      system: '#64748b',
-      payment: '#8b5cf6',
-      update: '#3b82f6',
+    const map = {
+      course_enrollment: "#6366f1",
+      scholarship_applied: "#f59e0b",
+      scholarship_status: "#10b981",
+      admin_broadcast: "#8b5cf6",
+      general: "#64748b",
     };
-    return colorMap[type] || '#6366f1';
+    return map[type] || "#6366f1";
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
+        </View>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -97,16 +144,12 @@ export default function Notifications() {
             <Text style={styles.headerTitle}>Notifications</Text>
             <Text style={styles.headerSubtitle}>
               {unreadCount > 0
-                ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
-                : 'All caught up!'}
+                ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+                : "You're all caught up!"}
             </Text>
           </View>
           {unreadCount > 0 && (
-            <TouchableOpacity
-              style={styles.markAllButton}
-              onPress={markAllAsRead}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
               <Feather name="check-circle" size={18} color="#6366f1" />
               <Text style={styles.markAllText}>Mark all read</Text>
             </TouchableOpacity>
@@ -116,53 +159,29 @@ export default function Notifications() {
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'all' && styles.activeTab]}
-            onPress={() => handleTabChange('all')}
-            activeOpacity={0.7}
+            style={[styles.tab, activeTab === "all" && styles.activeTab]}
+            onPress={() => handleTabChange("all")}
           >
-            <Text
-              style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}
-            >
+            <Text style={[styles.tabText, activeTab === "all" && styles.activeTabText]}>
               All
             </Text>
-            <View style={[styles.tabBadge, activeTab === 'all' && styles.activeTabBadge]}>
-              <Text
-                style={[
-                  styles.tabBadgeText,
-                  activeTab === 'all' && styles.activeTabBadgeText,
-                ]}
-              >
+            <View style={[styles.tabBadge, activeTab === "all" && styles.activeTabBadge]}>
+              <Text style={[styles.tabBadgeText, activeTab === "all" && styles.activeTabBadgeText]}>
                 {notifications.length}
               </Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'unread' && styles.activeTab]}
-            onPress={() => handleTabChange('unread')}
-            activeOpacity={0.7}
+            style={[styles.tab, activeTab === "unread" && styles.activeTab]}
+            onPress={() => handleTabChange("unread")}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'unread' && styles.activeTabText,
-              ]}
-            >
+            <Text style={[styles.tabText, activeTab === "unread" && styles.activeTabText]}>
               Unread
             </Text>
             {unreadCount > 0 && (
-              <View
-                style={[
-                  styles.tabBadge,
-                  activeTab === 'unread' && styles.activeTabBadge,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabBadgeText,
-                    activeTab === 'unread' && styles.activeTabBadgeText,
-                  ]}
-                >
+              <View style={[styles.tabBadge, activeTab === "unread" && styles.activeTabBadge]}>
+                <Text style={[styles.tabBadgeText, activeTab === "unread" && styles.activeTabBadgeText]}>
                   {unreadCount}
                 </Text>
               </View>
@@ -170,13 +189,10 @@ export default function Notifications() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'read' && styles.activeTab]}
-            onPress={() => handleTabChange('read')}
-            activeOpacity={0.7}
+            style={[styles.tab, activeTab === "read" && styles.activeTab]}
+            onPress={() => handleTabChange("read")}
           >
-            <Text
-              style={[styles.tabText, activeTab === 'read' && styles.activeTabText]}
-            >
+            <Text style={[styles.tabText, activeTab === "read" && styles.activeTabText]}>
               Read
             </Text>
           </TouchableOpacity>
@@ -184,17 +200,10 @@ export default function Notifications() {
 
         {/* Notifications List */}
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#6366f1']}
-              tintColor="#6366f1"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#6366f1"]} />
           }
+          showsVerticalScrollIndicator={false}
         >
           {filteredNotifications.length === 0 ? (
             <View style={styles.emptyState}>
@@ -203,389 +212,240 @@ export default function Notifications() {
               </View>
               <Text style={styles.emptyTitle}>No notifications</Text>
               <Text style={styles.emptyText}>
-                {activeTab === 'unread'
-                  ? "You're all caught up!"
-                  : 'Check back later for updates'}
+                {activeTab === "unread" ? "You're all caught up!" : "Check back later for updates"}
               </Text>
             </View>
           ) : (
             <View style={styles.notificationsList}>
-              {filteredNotifications.map((notification) => (
-                <TouchableOpacity
-                  key={notification.id}
-                  style={[
-                    styles.notificationCard,
-                    !notification.read && styles.unreadCard,
-                  ]}
-                  onPress={() => !notification.read && markAsRead(notification.id)}
-                  activeOpacity={0.7}
+              {filteredNotifications.map((notif) => (
+                <View
+                  key={notif.id}
+                  style={[styles.notificationCard, !notif.isRead && styles.unreadCard]}
                 >
-                  {/* Left Side - Icon */}
                   <View
                     style={[
                       styles.notificationIcon,
-                      {
-                        backgroundColor:
-                          getNotificationColor(notification.type) + '20',
-                      },
+                      { backgroundColor: getNotificationColor(notif.type) + "20" },
                     ]}
                   >
                     <Feather
-                      name={getNotificationIcon(notification.type)}
+                      name={getNotificationIcon(notif.type)}
                       size={22}
-                      color={getNotificationColor(notification.type)}
+                      color={getNotificationColor(notif.type)}
                     />
                   </View>
 
-                  {/* Middle - Content */}
                   <View style={styles.notificationContent}>
                     <View style={styles.notificationHeader}>
                       <Text style={styles.notificationTitle} numberOfLines={2}>
-                        {notification.title}
+                        {notif.title}
                       </Text>
-                      {!notification.read && <View style={styles.unreadDot} />}
+                      {!notif.isRead && <View style={styles.unreadDot} />}
                     </View>
                     <Text style={styles.notificationMessage} numberOfLines={2}>
-                      {notification.message}
+                      {notif.message}
                     </Text>
-                    <View style={styles.notificationFooter}>
-                      <Feather name="clock" size={12} color="#94a3b8" />
-                      <Text style={styles.notificationTime}>
-                        {notification.time}
-                      </Text>
-                      {notification.category && (
-                        <>
-                          <View style={styles.timeDot} />
-                          <Text style={styles.notificationCategory}>
-                            {notification.category}
-                          </Text>
-                        </>
-                      )}
-                    </View>
+                    <Text style={styles.notificationTime}>
+                      {new Date(notif.createdAt).toLocaleString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </Text>
                   </View>
-
-                  {/* Right Side - Actions */}
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteNotification(notification.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Feather name="x" size={18} color="#94a3b8" />
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                </View>
               ))}
             </View>
           )}
-
-          <View style={{ height: 20 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
       </View>
     </Layout>
   );
 }
 
-// Mock Notifications Data
-const MOCK_NOTIFICATIONS = [
-  {
-    id: '1',
-    type: 'course',
-    title: 'New Course Available',
-    message: 'UPSC Prelims 2025 - Complete Test Series is now available for enrollment.',
-    time: '2 hours ago',
-    category: 'Courses',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'achievement',
-    title: 'Congratulations! 🎉',
-    message: 'You completed "Indian Polity" course with 95% score!',
-    time: '5 hours ago',
-    category: 'Achievement',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'test',
-    title: 'Test Reminder',
-    message: 'Your mock test "Economics - Part 1" is scheduled for tomorrow at 10:00 AM.',
-    time: '1 day ago',
-    category: 'Tests',
-    read: false,
-  },
-  {
-    id: '4',
-    type: 'payment',
-    title: 'Payment Successful',
-    message: 'Your payment of ₹2,999 for UPSC Prelims course was successful.',
-    time: '2 days ago',
-    category: 'Payments',
-    read: true,
-  },
-  {
-    id: '5',
-    type: 'update',
-    title: 'New Features Added',
-    message: 'Check out our new dark mode and improved video player!',
-    time: '3 days ago',
-    category: 'Updates',
-    read: true,
-  },
-  {
-    id: '6',
-    type: 'course',
-    title: 'Course Update',
-    message: '5 new videos added to "Modern Indian History" course.',
-    time: '3 days ago',
-    category: 'Courses',
-    read: true,
-  },
-  {
-    id: '7',
-    type: 'system',
-    title: 'Maintenance Notice',
-    message: 'Scheduled maintenance on Sunday, 2:00 AM - 4:00 AM IST.',
-    time: '4 days ago',
-    category: 'System',
-    read: true,
-  },
-  {
-    id: '8',
-    type: 'achievement',
-    title: 'Streak Milestone! 🔥',
-    message: "You've maintained a 7-day learning streak. Keep it up!",
-    time: '5 days ago',
-    category: 'Achievement',
-    read: true,
-  },
-  {
-    id: '9',
-    type: 'test',
-    title: 'Test Results Available',
-    message: 'Your results for "Geography Mock Test 2" are now available.',
-    time: '6 days ago',
-    category: 'Tests',
-    read: true,
-  },
-  {
-    id: '10',
-    type: 'course',
-    title: 'Course Expiring Soon',
-    message: 'Your "Current Affairs 2024" course will expire in 7 days.',
-    time: '1 week ago',
-    category: 'Courses',
-    read: true,
-  },
-];
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#64748b",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: "#f1f5f9",
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 2,
+    fontWeight: "800",
+    color: "#0f172a",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: "#64748b",
+    marginTop: 4,
   },
   markAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#eef2ff',
+    backgroundColor: "#eef2ff",
   },
   markAllText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#6366f1',
+    fontWeight: "600",
+    color: "#6366f1",
   },
-
-  // Tabs
   tabsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: "#f1f5f9",
   },
   tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
   },
   activeTab: {
-    backgroundColor: '#6366f1',
+    backgroundColor: "#6366f1",
   },
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: "600",
+    color: "#64748b",
   },
   activeTabText: {
-    color: '#fff',
+    color: "#fff",
   },
   tabBadge: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: "#e2e8f0",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     minWidth: 24,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTabBadge: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   tabBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
+    fontWeight: "700",
+    color: "#64748b",
   },
   activeTabBadgeText: {
-    color: '#6366f1',
+    color: "#6366f1",
   },
-
-  // Scroll View
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 16,
-  },
-
-  // Notifications List
   notificationsList: {
     paddingHorizontal: 16,
+    paddingTop: 16,
     gap: 12,
   },
   notificationCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     gap: 12,
   },
   unreadCard: {
-    borderColor: '#6366f1',
+    borderColor: "#6366f1",
     borderWidth: 1.5,
-    backgroundColor: '#fefefe',
+    backgroundColor: "#fefeff",
   },
   notificationIcon: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   notificationContent: {
     flex: 1,
   },
   notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 8,
     marginBottom: 6,
   },
   notificationTitle: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
-    lineHeight: 20,
+    fontSize: 15.5,
+    fontWeight: "700",
+    color: "#0f172a",
+    lineHeight: 21,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
+    backgroundColor: "#6366f1",
     marginTop: 6,
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#64748b',
+    color: "#64748b",
     lineHeight: 20,
     marginBottom: 8,
   },
-  notificationFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   notificationTime: {
     fontSize: 12,
-    color: '#94a3b8',
-    fontWeight: '500',
+    color: "#94a3b8",
+    fontWeight: "500",
   },
-  timeDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#cbd5e1',
-  },
-  notificationCategory: {
-    fontSize: 12,
-    color: '#94a3b8',
-    fontWeight: '600',
-  },
-  deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8fafc',
-  },
-
-  // Empty State
   emptyState: {
-    alignItems: 'center',
-    paddingVertical: 80,
+    alignItems: "center",
+    paddingVertical: 100,
     paddingHorizontal: 32,
   },
   emptyIcon: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
+    fontWeight: "800",
+    color: "#0f172a",
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
+    color: "#64748b",
+    textAlign: "center",
     lineHeight: 20,
   },
 });

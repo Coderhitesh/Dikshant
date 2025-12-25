@@ -17,7 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import useSWR from "swr";
 import { fetcher } from "../../constant/fetcher";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import YoutubePlayer from "react-native-youtube-iframe";
 
@@ -82,12 +82,17 @@ const AccordionItem = ({
   );
 };
 
+const BOTTOM_GESTURE_THRESHOLD = 16;
+
 export default function CourseDetail() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { batchId } = route.params || {};
-  console.log("batchId",batchId)
+  const { courseId: batchId } = route.params || {};
+  const insets = useSafeAreaInsets();
 
+  const isGestureNavigation = insets.bottom >= BOTTOM_GESTURE_THRESHOLD;
+
+  const TAB_BAR_HEIGHT = isGestureNavigation ? 72 : 56;
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -130,14 +135,14 @@ export default function CourseDetail() {
     return Math.round(
       ((batchData.batchPrice - batchData.batchDiscountPrice) /
         batchData.batchPrice) *
-        100
+      100
     );
   }, [batchData]);
 
   const triggerHaptic = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleBack = () => {
@@ -151,7 +156,7 @@ export default function CourseDetail() {
       triggerHaptic();
     } else {
       navigation.navigate("enroll-course", {
-       batchId: batchData.id, userId: 456
+        batchId: batchData.id, userId: 456
       });
     }
   };
@@ -235,7 +240,6 @@ export default function CourseDetail() {
     );
   }
 
-  console.log("batchData",batchData)
 
   if (batchError || !batchData) {
     return (
@@ -266,9 +270,9 @@ export default function CourseDetail() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           Course Details
         </Text>
-        <TouchableOpacity style={styles.iconButton} onPress={triggerHaptic}>
+        {/* <TouchableOpacity style={styles.iconButton} onPress={triggerHaptic}>
           <Feather name="share-2" size={20} color={colors.secondary} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <ScrollView
@@ -567,7 +571,10 @@ export default function CourseDetail() {
       </ScrollView>
 
       {/* Fixed Enroll Button */}
-      <View style={styles.enrollContainer}>
+      <View style={[styles.enrollContainer, {
+        height: TAB_BAR_HEIGHT + (isGestureNavigation ? insets.bottom : 0),
+        paddingBottom: isGestureNavigation ? insets.bottom : 0,
+      },]}>
         <View style={styles.enrollPriceInfo}>
           <Text style={styles.enrollPriceLabel}>Total Price</Text>
           <Text style={styles.enrollPriceValue}>

@@ -1,13 +1,8 @@
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-} from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Image } from "expo-image"; // ✅ use expo-image
 import ScholarshipImage from "../assets/images/scholarship-heros.jpeg";
-import { colors } from "../constant/color";
 
 const Scholarship = () => {
   const navigation = useNavigation();
@@ -22,7 +17,9 @@ const Scholarship = () => {
         <Image
           source={ScholarshipImage}
           style={styles.bannerImage}
-          resizeMode="contain"
+          contentFit="cover" // fills the space
+          cachePolicy="memory-disk" // ✅ enables caching
+          transition={1000} // fade in effect
         />
       </View>
     </TouchableOpacity>
@@ -32,12 +29,14 @@ const Scholarship = () => {
 export default Scholarship;
 
 const styles = StyleSheet.create({
-
+  container: {
+    marginBottom: 12,
+  },
   imageWrapper: {
     width: "100%",
     height: 220,
     overflow: "hidden",
-    marginBottom:12,
+    borderRadius: 12, // optional: rounded corners
   },
   bannerImage: {
     width: "100%",

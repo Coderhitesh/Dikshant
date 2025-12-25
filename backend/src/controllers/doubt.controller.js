@@ -17,9 +17,8 @@ exports.createDoubt = async (req, res) => {
   try {
     const userId = req.user.id; // from auth middleware
     const { subject, question, courseId, lessonId, attachmentUrl } = req.body;
-    console.log(" req.body", req.body)
 
-    if (!subject || !question) {
+    if (!question) {
       return res.status(400).json({
         message: "Subject and question are required",
       });

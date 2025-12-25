@@ -1,655 +1,511 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
-  StatusBar,
-  Platform 
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import axios from "axios";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useAuthStore } from "../../stores/auth.store";
+import { API_URL_LOCAL_ENDPOINT } from "../../constant/api";
+import Layout from "../../components/layout";
+
+const API_BASE = API_URL_LOCAL_ENDPOINT;
 
 export default function ApplyScholarship() {
-        const navigation = useNavigation()
-  
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    dateOfBirth: '',
-    gender: '',
-    fatherName: '',
-    motherName: '',
-    category: '',
-    annualIncome: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    qualification: '',
-    percentage: '',
-    boardUniversity: '',
-    passingYear: '',
-    aadharNumber: '',
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { scholarshipId } = route.params || {};
+  const { token } = useAuthStore();
+
+  const [scholarship, setScholarship] = useState(null);
+  const [loadingScholarship, setLoadingScholarship] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
+    fullName: "",
+    mobile: "",
+    gender: "",
+    category: "",
+    course: "",
+    medium: "",
   });
 
-  const [selectedGender, setSelectedGender] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedScholarship, setSelectedScholarship] = useState('');
+  const [certificate, setCertificate] = useState(null);
+  const [photo, setPhoto] = useState(null);
 
-  const updateField = (field, value) => {
-    setFormData({ ...formData, [field]: value });
+  // Fetch scholarship details
+  useEffect(() => {
+    if (!scholarshipId || !token) return;
+
+    const fetchScholarship = async () => {
+      try {
+        setLoadingScholarship(true);
+        const res = await axios.get(`${API_BASE}/scholarships/${scholarshipId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.success) {
+          setScholarship(res.data.data);
+        } else {
+          Alert.alert("Error", "Failed to load scholarship details");
+          navigation.goBack();
+        }
+      } catch (err) {
+        console.error("Fetch scholarship error:", err);
+        Alert.alert("Error", "Unable to load scholarship. Please try again.");
+        navigation.goBack();
+      } finally {
+        setLoadingScholarship(false);
+      }
+    };
+
+    fetchScholarship();
+  }, [scholarshipId, token]);
+
+  // Permissions
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS !== "web") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permission Needed", "Allow photo access to upload candidate photo.");
+        }
+      }
+    })();
+  }, []);
+
+  const pickCertificate = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        setCertificate({
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+        });
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick certificate.");
+    }
   };
 
-  const handleSubmit = () => {
-    console.log('Form submitted:', formData);
-    // Add your submission logic here
+  const pickPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        setPhoto({ uri: result.assets[0].uri });
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick photo.");
+    }
   };
 
-  const GenderOption = ({ label, value }) => (
-    <TouchableOpacity
-      style={[styles.optionButton, selectedGender === value && styles.optionButtonSelected]}
-      onPress={() => setSelectedGender(value)}
-    >
-      <View style={[styles.radioOuter, selectedGender === value && styles.radioOuterSelected]}>
-        {selectedGender === value && <View style={styles.radioInner} />}
-      </View>
-      <Text style={[styles.optionText, selectedGender === value && styles.optionTextSelected]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+  const handleSubmit = async () => {
+    if (!form.fullName.trim()) return Alert.alert("Required", "Enter full name");
+    if (!form.mobile.trim() || form.mobile.length !== 10) return Alert.alert("Invalid", "Enter valid 10-digit mobile");
+    if (!form.gender) return Alert.alert("Required", "Select gender");
+    if (!form.category) return Alert.alert("Required", "Select category");
+    if (!form.course) return Alert.alert("Required", "Select course");
+    if (!form.medium) return Alert.alert("Required", "Select medium");
+    if (!certificate) return Alert.alert("Required", "Upload certificate");
+    if (!photo) return Alert.alert("Required", "Upload photo");
 
-  const CategoryOption = ({ label, value }) => (
-    <TouchableOpacity
-      style={[styles.categoryButton, selectedCategory === value && styles.categoryButtonSelected]}
-      onPress={() => setSelectedCategory(value)}
-    >
-      <Text style={[styles.categoryText, selectedCategory === value && styles.categoryTextSelected]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+    setSubmitting(true);
 
-  const ScholarshipOption = ({ label, value, percentage }) => (
-    <TouchableOpacity
-      style={[styles.scholarshipCard, selectedScholarship === value && styles.scholarshipCardSelected]}
-      onPress={() => setSelectedScholarship(value)}
-    >
-      <View style={styles.scholarshipContent}>
-        <View style={[styles.checkboxOuter, selectedScholarship === value && styles.checkboxOuterSelected]}>
-          {selectedScholarship === value && <Ionicons name="checkmark" size={16} color="white" />}
+    try {
+      const formData = new FormData();
+      formData.append("scholarshipId", scholarshipId);
+      formData.append("fullName", form.fullName.trim());
+      formData.append("mobile", form.mobile.trim());
+      formData.append("gender", form.gender);
+      formData.append("category", form.category);
+      formData.append("course", form.course);
+      formData.append("medium", form.medium);
+
+      formData.append("certificate", {
+        uri: certificate.uri,
+        name: certificate.name || "certificate.pdf",
+        type: certificate.mimeType || "application/pdf",
+      });
+
+      formData.append("photo", {
+        uri: photo.uri,
+        name: "photo.jpg",
+        type: "image/jpeg",
+      });
+
+      const res = await axios.post(`${API_BASE}/scholarshipapplications`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (res.data.success) {
+        Alert.alert("Success ✅", "Application submitted successfully!", [
+          { text: "OK", onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert("Failed", res.data.message || "Submission failed");
+      }
+    } catch (error) {
+      console.error("Submit error:", error.response?.data || error);
+      Alert.alert("Error", "Something went wrong. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loadingScholarship) {
+    return (
+      <Layout isBottomBarShow={false}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#EF4444" />
+          <Text style={styles.loadingText}>Loading scholarship...</Text>
         </View>
-        <View style={styles.scholarshipInfo}>
-          <Text style={styles.scholarshipPercentage}>{percentage}</Text>
-          <Text style={styles.scholarshipLabel}>{label}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </Layout>
+    );
+  }
+
+  if (!scholarship) {
+    return null;
+  }
+
+  // Parse from API
+  const categories = JSON.parse(scholarship.category || "[]");
+  const courses = JSON.parse(scholarship.offeredCourseIds || "[]");
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={()=>navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Apply for Scholarship</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Scholarship Type Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Scholarship Type</Text>
-          <ScholarshipOption 
-            label="For EWS Students (Income Below 6 Lacs)" 
-            value="70" 
-            percentage="70% Scholarship"
-          />
-          <ScholarshipOption 
-            label="For EWS Students (Income 6-8 Lacs)" 
-            value="60" 
-            percentage="60% Scholarship"
-          />
-          <ScholarshipOption 
-            label="For Meritorious Students (All Income Groups)" 
-            value="50" 
-            percentage="50% Scholarship"
-          />
-        </View>
-
-        {/* Personal Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your full name"
-              value={formData.fullName}
-              onChangeText={(text) => updateField('fullName', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="your.email@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={formData.email}
-              onChangeText={(text) => updateField('email', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mobile Number <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+91 XXXXX XXXXX"
-              keyboardType="phone-pad"
-              value={formData.phone}
-              onChangeText={(text) => updateField('phone', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="DD/MM/YYYY"
-              value={formData.dateOfBirth}
-              onChangeText={(text) => updateField('dateOfBirth', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Gender <Text style={styles.required}>*</Text></Text>
-            <View style={styles.optionsRow}>
-              <GenderOption label="Male" value="male" />
-              <GenderOption label="Female" value="female" />
-              <GenderOption label="Other" value="other" />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Father's Name <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter father's name"
-              value={formData.fatherName}
-              onChangeText={(text) => updateField('fatherName', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mother's Name <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter mother's name"
-              value={formData.motherName}
-              onChangeText={(text) => updateField('motherName', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Aadhar Number <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="XXXX XXXX XXXX"
-              keyboardType="number-pad"
-              maxLength={12}
-              value={formData.aadharNumber}
-              onChangeText={(text) => updateField('aadharNumber', text)}
-            />
+    <Layout isBottomBarShow={false}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Scholarship Header */}
+        <View style={styles.headerCard}>
+          <Text style={styles.scholarshipTitle}>{scholarship.name}</Text>
+          <Text style={styles.scholarshipDesc}>{scholarship.description}</Text>
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>{scholarship.discountPercentage}% Scholarship</Text>
           </View>
         </View>
 
-        {/* Category Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Category Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
-            <View style={styles.categoryRow}>
-              <CategoryOption label="General" value="general" />
-              <CategoryOption label="OBC" value="obc" />
-              <CategoryOption label="SC" value="sc" />
-              <CategoryOption label="ST" value="st" />
-              <CategoryOption label="EWS" value="ews" />
-            </View>
-          </View>
+        {/* Form Fields */}
+        <View style={styles.form}>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Annual Family Income <Text style={styles.required}>*</Text></Text>
+          {/* Full Name */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Enter your full name</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter annual income in ₹"
+              placeholder="Full Name"
+              value={form.fullName}
+              onChangeText={(t) => setForm({ ...form, fullName: t })}
+            />
+          </View>
+
+          {/* Mobile */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Enter your mobile number</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Mobile Number"
               keyboardType="numeric"
-              value={formData.annualIncome}
-              onChangeText={(text) => updateField('annualIncome', text)}
-            />
-          </View>
-        </View>
-
-        {/* Address Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Address Details</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Complete Address <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="House No., Street, Locality"
-              multiline
-              numberOfLines={3}
-              value={formData.address}
-              onChangeText={(text) => updateField('address', text)}
+              maxLength={10}
+              value={form.mobile}
+              onChangeText={(t) => setForm({ ...form, mobile: t.replace(/[^0-9]/g, "") })}
             />
           </View>
 
+          {/* Gender & Category */}
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>City <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={styles.input}
-                placeholder="City"
-                value={formData.city}
-                onChangeText={(text) => updateField('city', text)}
-              />
+            <View style={styles.half}>
+              <Text style={styles.label}>Select Gender</Text>
+              <View style={styles.picker}>
+                <Picker
+                  selectedValue={form.gender}
+                  onValueChange={(v) => setForm({ ...form, gender: v })}
+                >
+                  <Picker.Item label="Select Gender" value="" />
+                  <Picker.Item label="Male" value="Male" />
+                  <Picker.Item label="Female" value="Female" />
+                  <Picker.Item label="Other" value="Other" />
+                </Picker>
+              </View>
             </View>
 
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>State <Text style={styles.required}>*</Text></Text>
-              <TextInput
-                style={styles.input}
-                placeholder="State"
-                value={formData.state}
-                onChangeText={(text) => updateField('state', text)}
-              />
+            <View style={styles.half}>
+              <Text style={styles.label}>Select Category</Text>
+              <View style={styles.picker}>
+                <Picker
+                  selectedValue={form.category}
+                  onValueChange={(v) => setForm({ ...form, category: v })}
+                >
+                  <Picker.Item label="Select Category" value="" />
+                  {categories.map((cat) => (
+                    <Picker.Item key={cat} label={cat} value={cat} />
+                  ))}
+                </Picker>
+              </View>
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Pincode <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="6-digit pincode"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={formData.pincode}
-              onChangeText={(text) => updateField('pincode', text)}
-            />
-          </View>
-        </View>
+          {/* Course & Medium */}
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.label}>Select Course</Text>
+              <View style={styles.picker}>
+                <Picker
+                  selectedValue={form.course}
+                  onValueChange={(v) => setForm({ ...form, course: v })}
+                >
+                  <Picker.Item label="Select Course" value="" />
+                  {courses.map((course) => (
+                    <Picker.Item key={course} label={course} value={course} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
 
-        {/* Educational Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Educational Details</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Highest Qualification <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 10th, 12th, Graduation"
-              value={formData.qualification}
-              onChangeText={(text) => updateField('qualification', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Percentage/CGPA <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter percentage or CGPA"
-              keyboardType="decimal-pad"
-              value={formData.percentage}
-              onChangeText={(text) => updateField('percentage', text)}
-            />
+            <View style={styles.half}>
+              <Text style={styles.label}>Select Medium</Text>
+              <View style={styles.picker}>
+                <Picker
+                  selectedValue={form.medium}
+                  onValueChange={(v) => setForm({ ...form, medium: v })}
+                >
+                  <Picker.Item label="Select Medium" value="" />
+                  <Picker.Item label="Hindi" value="Hindi" />
+                  <Picker.Item label="English" value="English" />
+                  <Picker.Item label="Bilingual" value="Bilingual" />
+                </Picker>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Board/University <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter board or university name"
-              value={formData.boardUniversity}
-              onChangeText={(text) => updateField('boardUniversity', text)}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Year of Passing <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY"
-              keyboardType="number-pad"
-              maxLength={4}
-              value={formData.passingYear}
-              onChangeText={(text) => updateField('passingYear', text)}
-            />
-          </View>
-        </View>
-
-        {/* Documents Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upload Documents</Text>
-          
-          <TouchableOpacity style={styles.uploadButton}>
-            <Ionicons name="cloud-upload-outline" size={24} color="#EF4444" />
-            <Text style={styles.uploadText}>Upload Aadhar Card</Text>
-            <Text style={styles.uploadSubtext}>(PDF, JPG, PNG - Max 2MB)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.uploadButton}>
-            <Ionicons name="cloud-upload-outline" size={24} color="#EF4444" />
-            <Text style={styles.uploadText}>Upload Income Certificate</Text>
-            <Text style={styles.uploadSubtext}>(PDF, JPG, PNG - Max 2MB)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.uploadButton}>
-            <Ionicons name="cloud-upload-outline" size={24} color="#EF4444" />
-            <Text style={styles.uploadText}>Upload Marksheet</Text>
-            <Text style={styles.uploadSubtext}>(PDF, JPG, PNG - Max 2MB)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.uploadButton}>
-            <Ionicons name="cloud-upload-outline" size={24} color="#EF4444" />
-            <Text style={styles.uploadText}>Upload Photo</Text>
-            <Text style={styles.uploadSubtext}>(JPG, PNG - Max 1MB)</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Terms and Conditions */}
-        <View style={styles.section}>
-          <View style={styles.checkboxRow}>
-            <TouchableOpacity style={styles.checkbox}>
-              <Ionicons name="square-outline" size={24} color="#6B7280" />
+          {/* Certificate Upload */}
+          <View style={styles.upload}>
+            <Text style={styles.uploadLabel}>Upload Certificate *</Text>
+            <Text style={styles.hint}>(Caste / Income / Other valid certificate)</Text>
+            <TouchableOpacity style={styles.chooseBtn} onPress={pickCertificate}>
+              <Text style={styles.chooseText}>Choose file</Text>
             </TouchableOpacity>
-            <Text style={styles.termsText}>
-              I agree to the <Text style={styles.link}>Terms & Conditions</Text> and <Text style={styles.link}>Privacy Policy</Text>
+            <Text style={styles.fileText}>
+              {certificate ? certificate.name : "No file chosen"}
             </Text>
           </View>
+
+          {/* Photo Upload */}
+          <View style={styles.upload}>
+            <Text style={styles.uploadLabel}>Upload Candidate Photo *</Text>
+            <Text style={styles.hint}>(Clear passport-size photo – JPG/PNG only)</Text>
+            <TouchableOpacity style={styles.chooseBtn} onPress={pickPhoto}>
+              <Text style={styles.chooseText}>Choose file</Text>
+            </TouchableOpacity>
+            {photo ? (
+              <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+            ) : (
+              <Text style={styles.fileText}>No file chosen</Text>
+            )}
+          </View>
+
+          {/* Buttons */}
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.cancel} onPress={() => navigation.goBack()}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submit, submitting && styles.submitDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitText}>Submit</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Submit Application</Text>
-          <Ionicons name="arrow-forward" size={20} color="white" />
-        </TouchableOpacity>
-
-        <Text style={styles.footerNote}>
-          Note: All fields marked with <Text style={styles.required}>*</Text> are mandatory
-        </Text>
       </ScrollView>
-    </View>
+    </Layout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#fff",
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
+  content: {
     paddingBottom: 40,
   },
-  section: {
-    backgroundColor: 'white',
-    marginTop: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  sectionTitle: {
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+  },
+  headerCard: {
+    backgroundColor: "#FFF5F5",
+    margin: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  scholarshipTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "700",
+    color: "#B91C1C",
     marginBottom: 8,
   },
-  required: {
-    color: '#EF4444',
+  scholarshipDesc: {
+    fontSize: 14.5,
+    color: "#444",
+    lineHeight: 21,
+    marginBottom: 12,
+  },
+  discountBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  discountText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  form: {
+    paddingHorizontal: 20,
+  },
+  field: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 15.5,
+    color: "#333",
+    marginBottom: 8,
+    fontWeight: "600",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#1F2937',
-    backgroundColor: 'white',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-    paddingTop: 12,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  optionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    gap: 8,
-  },
-  optionButtonSelected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: '#EF4444',
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#EF4444',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  optionTextSelected: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 20,
-  },
-  categoryButtonSelected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  categoryTextSelected: {
-    color: '#EF4444',
-    fontWeight: '600',
+    borderColor: "#E0E0E0",
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    fontSize: 16,
+    backgroundColor: "#FAFAFA",
   },
   row: {
-    flexDirection: 'row',
-    gap: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  halfWidth: {
-    flex: 1,
+  half: {
+    flex: 0.485,
   },
-  uploadButton: {
+  picker: {
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 14,
+    backgroundColor: "#FAFAFA",
+    overflow: "hidden",
+  },
+  upload: {
+    marginBottom: 28,
+  },
+  uploadLabel: {
+    fontSize: 15.5,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 6,
+  },
+  hint: {
+    fontSize: 13.5,
+    color: "#666",
+    marginBottom: 14,
+    lineHeight: 19,
+  },
+  chooseBtn: {
+    backgroundColor: "#EF4444",
+    alignSelf: "flex-start",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  chooseText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  fileText: {
+    marginTop: 12,
+    fontSize: 14.5,
+    color: "#555",
+  },
+  photoPreview: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+    marginTop: 14,
+    alignSelf: "center",
     borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 12,
+    borderColor: "#ddd",
   },
-  uploadText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 8,
+  buttons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 20,
+    marginTop: 30,
   },
-  uploadSubtext: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  checkbox: {
-    marginTop: 2,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  link: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#EF4444',
-    marginHorizontal: 20,
-    marginTop: 24,
+  cancel: {
+    paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+  },
+  cancelText: {
+    fontSize: 16,
+    color: "#4B5563",
+    fontWeight: "600",
+  },
+  submit: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  submitDisabled: {
+    opacity: 0.7,
   },
   submitText: {
-    color: 'white',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  footerNote: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 16,
-    marginHorizontal: 20,
-  },
-  scholarshipCard: {
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  scholarshipCardSelected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  scholarshipContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checkboxOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxOuterSelected: {
-    borderColor: '#EF4444',
-    backgroundColor: '#EF4444',
-  },
-  scholarshipInfo: {
-    flex: 1,
-  },
-  scholarshipPercentage: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  scholarshipLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
+    fontWeight: "700",
   },
 });

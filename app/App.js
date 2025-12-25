@@ -47,6 +47,7 @@ import {
   ShareAppScreen,
 } from "./pages/Profile/ShareApp";
 import ForgotPassword from "./screens/auth/ForgotPassword";
+import { SocketProvider } from "./context/SocketContext";
 
 const Stack = createNativeStackNavigator();
 
@@ -72,7 +73,7 @@ export default function App() {
   const fcmUnsubscribe = useRef();
   const appState = useRef(AppState.currentState);
   const navigationRef = useRef();
-  const { token } = useAuthStore();
+  const { token ,user } = useAuthStore();
   useEffect(() => {
     initializeApp();
 
@@ -293,6 +294,7 @@ export default function App() {
   TextInput.defaultProps.style = { fontFamily: "Geist" };
 
   return (
+    <SocketProvider userId={user?.id}>
     <NavigationContainer ref={navigationRef}>
       <StatusBar style="auto" />
       <Stack.Navigator
@@ -334,5 +336,7 @@ export default function App() {
         <Stack.Screen name="ApplyScholarship" component={ApplyScholarship} />
       </Stack.Navigator>
     </NavigationContainer>
+    </SocketProvider>
+
   );
 }

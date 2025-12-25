@@ -16,12 +16,15 @@ router.use('/orders', require('./orders'));
 router.use('/coupons', require('./coupons'));
 router.use('/blogs', require('./blogs'));
 router.use('/banners', require('./banners'));
+router.use('/chat',require('./chat.routes'))
+router.use('/comments',require('./comments'))
+router.use('/notifications',require('./notifications'))
 router.use('/faqs', require('./faqs'));
 router.use('/testimonials', require('./testimonials'));
 router.use('/pages', require('./pages'));
 router.use('/appsettings', require('./appsettings'));
 router.use('/downloads', require('./downloads'));
-router.use('/scholarships', require('./scholarships'));//done
+router.use('/scholarships', require('./scholarships'));
 router.use('/scholarshipapplications', require('./scholarshipapplications'));
 router.use('/courseprogresss', require('./courseprogresss'));
 router.use('/scholarshipresults', require('./scholarshipresults'));

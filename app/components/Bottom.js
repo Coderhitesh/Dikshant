@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
-
+const BOTTOM_GESTURE_THRESHOLD = 16;
 export default function BottomBar() {
   const navigation = useNavigation();
   const route = useRoute();
@@ -24,7 +24,9 @@ export default function BottomBar() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
-
+  const isGestureNavigation = insets.bottom >= BOTTOM_GESTURE_THRESHOLD;
+  const TAB_BAR_HEIGHT = isGestureNavigation ? 72 : 56;
+  // console.log("Navigation", isGestureNavigation)
   const tabs = [
     { label: "Home", icon: "home", screen: "Home", comingSoon: false },
     {
@@ -96,14 +98,23 @@ export default function BottomBar() {
 
   return (
     <>
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            height: TAB_BAR_HEIGHT + (isGestureNavigation ? insets.bottom : 0),
+            paddingBottom: isGestureNavigation ? insets.bottom : 0,
+          },
+        ]}
+      >
+
         {tabs.map((tab, index) => {
           const isActive = route.name === tab.screen;
 
           return (
             <TouchableOpacity
               key={index}
-              style={styles.tab}
+              style={[styles.tab, { height: 20 + insets.bottom }]}
               activeOpacity={0.7}
               onPress={() => handleTabPress(tab)}
             >
@@ -144,7 +155,7 @@ export default function BottomBar() {
             {/* HEADER */}
             <LinearGradient
               colors={["#ef4444", "#dc2626"]}
-              style={styles.modalHeader}g
+              style={styles.modalHeader} g
             >
               <View style={styles.iconContainer}>
                 <Feather name={selectedFeature?.icon} size={40} color="#fff" />
@@ -172,7 +183,7 @@ export default function BottomBar() {
 const styles = StyleSheet.create({
   container: {
     width,
-    height: 70,
+
     backgroundColor: "#fff",
     flexDirection: "row",
     justifyContent: "space-around",
@@ -188,6 +199,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   tab: {
+
     flex: 1,
     alignItems: "center",
     justifyContent: "center",

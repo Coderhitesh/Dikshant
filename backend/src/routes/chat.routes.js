@@ -1,0 +1,12 @@
+const ChatController = require("../controllers/ChatController");
+const router = require("express").Router();
+
+router.get("/admin-message", ChatController.adminMessage)
+router.get("/history/:videoId", async (req, res) => {
+    const { videoId } = req.params
+    const limit = parseInt(req.query.limit) || 500
+
+    const result = await ChatController.getChatHistory(videoId, limit)
+    return res.json(result)
+})
+module.exports = router;

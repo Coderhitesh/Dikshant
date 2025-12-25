@@ -1,9 +1,9 @@
 "use strict";
 
-const { Order ,Coupon, Batch, Program, Subject, Sequelize } = require("../models");
+const { Order, Coupon, Batch, Program, Subject, Sequelize } = require("../models");
 const razorpay = require("../config/razorpay");
 const redis = require("../config/redis");
-
+const NotificationController = require("./NotificationController");
 class OrderController {
 
   // CREATE RAZORPAY ORDER
@@ -30,7 +30,7 @@ class OrderController {
         couponDiscountType: null
       };
 
-     
+
       if (couponCode) {
         const coupon = await Coupon.findOne({
           where: { code: couponCode.toUpperCase() }
@@ -39,13 +39,13 @@ class OrderController {
         if (!coupon)
           return res.status(404).json({ message: "Invalid coupon code" });
 
-      
+
         const now = new Date();
         if (now > coupon.validTill) {
           return res.status(400).json({ message: "Coupon expired" });
         }
 
-       
+
         couponSnapshot = {
           couponId: coupon.id,
           couponCode: coupon.code,
@@ -53,7 +53,7 @@ class OrderController {
           couponDiscountType: coupon.discountType
         };
 
-       
+
         if (coupon.discountType === "flat") {
           discount = coupon.discount;
         }
@@ -70,7 +70,7 @@ class OrderController {
       const totalAmount = amount - discount + gst;
 
       const razorOrder = await razorpay.orders.create({
-        amount: Math.round(totalAmount * 100), 
+        amount: Math.round(totalAmount * 100),
         currency: "INR",
         receipt: `order_${Date.now()}`
       });
@@ -120,7 +120,6 @@ class OrderController {
         razorpayPaymentId,
         razorpaySignature
       } = req.body;
-      console.log(req.body)
       const order = await Order.findOne({ where: { razorpayOrderId } });
 
       if (!order)
@@ -133,6 +132,14 @@ class OrderController {
         paymentDate: new Date()
       });
 
+      await NotificationController.createNotification({
+        userId: order.userId,
+        title: "Payment Successful & Enrollment Confirmed",
+        message: `Your payment was successful and you have been enrolled in the course.`,
+        type: "course",
+        relatedId: order.id,
+      });
+      
       await redis.del(`orders:${order.userId}`);
 
       return res.json({ success: true, message: "Payment verified", order });
@@ -144,71 +151,71 @@ class OrderController {
   }
 
   // USER ORDERS
-static async userOrders(req, res) {
-  try {
-    const userId = req.params.userId;
+  static async userOrders(req, res) {
+    try {
+      const userId = req.params.userId;
 
-    // Fetch all user orders (latest first)
-    const orders = await Order.findAll({
-      where: { userId },
-      order: [["createdAt", "DESC"]],
-    });
+      // Fetch all user orders (latest first)
+      const orders = await Order.findAll({
+        where: { userId },
+        order: [["createdAt", "DESC"]],
+      });
 
-    // Attach Batch + Program + Subjects for batch-type orders
-    const finalOrders = await Promise.all(
-      orders.map(async (order) => {
-        if (order.type !== "batch") return order.toJSON(); // Skip non-batch
+      // Attach Batch + Program + Subjects for batch-type orders
+      const finalOrders = await Promise.all(
+        orders.map(async (order) => {
+          if (order.type !== "batch") return order.toJSON(); // Skip non-batch
 
-        // Fetch Batch with Program
-        const batch = await Batch.findOne({
-          where: { id: order.itemId },
-          include: [
-            {
-              model: Program,
-              as: "program",
-              attributes: ["id", "name", "slug"],
-            },
-          ],
-        });
+          // Fetch Batch with Program
+          const batch = await Batch.findOne({
+            where: { id: order.itemId },
+            include: [
+              {
+                model: Program,
+                as: "program",
+                attributes: ["id", "name", "slug"],
+              },
+            ],
+          });
 
-        if (!batch) {
+          if (!batch) {
+            return {
+              ...order.toJSON(),
+              batch: null,
+              subjects: [],
+            };
+          }
+
+          // Parse Subject IDs
+          let subjectIds = [];
+          try {
+            subjectIds = JSON.parse(batch.subjectId || "[]");
+          } catch (e) {
+            subjectIds = [];
+          }
+
+          // Fetch Subjects
+          const subjectsList = await Subject.findAll({
+            where: { id: subjectIds },
+            attributes: ["id", "name", "slug", "description"],
+          });
+
+          // Build final structured response
           return {
             ...order.toJSON(),
-            batch: null,
-            subjects: [],
+            batch: batch.toJSON(),
+            subjects: subjectsList,
           };
-        }
+        })
+      );
 
-        // Parse Subject IDs
-        let subjectIds = [];
-        try {
-          subjectIds = JSON.parse(batch.subjectId || "[]");
-        } catch (e) {
-          subjectIds = [];
-        }
+      return res.json(finalOrders);
 
-        // Fetch Subjects
-        const subjectsList = await Subject.findAll({
-          where: { id: subjectIds },
-          attributes: ["id", "name", "slug", "description"],
-        });
-
-        // Build final structured response
-        return {
-          ...order.toJSON(),
-          batch: batch.toJSON(),
-          subjects: subjectsList,
-        };
-      })
-    );
-
-    return res.json(finalOrders);
-
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ message: "Error fetching orders", e });
+    } catch (e) {
+      console.log(e);
+      return res.status(500).json({ message: "Error fetching orders", e });
+    }
   }
-}
 
   // ALL ORDERS (ADMIN)
   static async allOrders(req, res) {

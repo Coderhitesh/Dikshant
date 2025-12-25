@@ -47,13 +47,7 @@ export default function SignInForm() {
     setLoading(true);
 
     try {
-      // const response = await fetch(`${API_URL}/auth/admin-login`, {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify(formData),
-      // });
+   
       const response = await axios.post(`${API_URL}/auth/admin-login`, formData, {
         headers: {
           "Content-Type": "application/json",
@@ -67,9 +61,8 @@ export default function SignInForm() {
         return;
       }
 
-      /* ======================
-          SAVE TO LOCALSTORAGE
-      ====================== */
+
+      // ====================== */
       localStorage.setItem("accessToken", data.token);
       localStorage.setItem("refreshToken", data.refresh_token);
       localStorage.setItem("user", JSON.stringify(data.user));

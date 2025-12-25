@@ -3,7 +3,11 @@
 module.exports = (sequelize, DataTypes) => {
   const VideoCourse = sequelize.define('VideoCourse', {
 
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    id: { 
+      type: DataTypes.INTEGER, 
+      autoIncrement: true, 
+      primaryKey: true 
+    },
 
     imageUrl: DataTypes.STRING,
     title: DataTypes.STRING,
@@ -18,11 +22,29 @@ module.exports = (sequelize, DataTypes) => {
 
     status: DataTypes.ENUM("active", "inactive"),
 
+    isLive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false
+    },
+    isLiveEnded:{
+  type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    DateOfLive: {
+      type: DataTypes.DATEONLY,    
+      allowNull: true           
+    },
+
+    TimeOfLIve: {
+      type: DataTypes.TIME,     
+      allowNull: true       
+    },
+
   }, {
     tableName: 'videocourses',
     timestamps: true
   });
 
- 
   return VideoCourse;
 };

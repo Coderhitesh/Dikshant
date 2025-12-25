@@ -4,6 +4,7 @@ const { VideoCourse } = require("../models");
 const redis = require("../config/redis");
 const uploadToS3 = require("../utils/s3Upload");
 const deleteFromS3 = require("../utils/s3Delete");
+// const NotificationController = require("./NotificationController");
 
 class VideoCourseController {
 
@@ -29,15 +30,35 @@ class VideoCourseController {
         }
       }
 
+      const isLive = req.body.isLive === true || req.body.isLive === "true";
+
+      if (isLive) {
+        if (!req.body.DateOfLive || !req.body.TimeOfLIve) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "DateOfLive and TimeOfLIve are required when the video is live",
+          });
+        }
+      }
+
       const payload = {
         title: req.body.title.trim(),
         videoSource: req.body.videoSource,
-        url: req.body.url,
+        url: req.body.url.trim(),
         batchId: Number(req.body.batchId),
         subjectId: Number(req.body.subjectId),
-        isDownloadable: req.body.isDownloadable === true,
-        isDemo: req.body.isDemo === true,
-        status: req.body.status === true? "active" : "inactive",
+        isDownloadable:
+          req.body.isDownloadable === true ||
+          req.body.isDownloadable === "true",
+        isDemo: req.body.isDemo === true || req.body.isDemo === "true",
+        isLive,
+        DateOfLive: isLive ? req.body.DateOfLive : null,
+        TimeOfLIve: isLive ? req.body.TimeOfLIve : null,
+        status:
+          req.body.status === true || req.body.status === "true"
+            ? "active"
+            : "inactive",
         imageUrl: null,
       };
 
@@ -47,18 +68,20 @@ class VideoCourseController {
 
       const item = await VideoCourse.create(payload);
 
-      // 🔥 CLEAR ALL RELATED CACHE
       await redis.del("videocourses");
       await redis.del(`videocourses:batch:${payload.batchId}`);
-
+      
       return res.status(201).json({
         success: true,
         message: "Video course created successfully",
         data: item,
       });
     } catch (error) {
-      console.error("Create Error:", error);
-      return res.status(500).json({ success: false, message: "Server error" });
+      console.error("VideoCourse Create Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
     }
   }
 
@@ -145,28 +168,67 @@ class VideoCourseController {
   static async update(req, res) {
     try {
       const item = await VideoCourse.findByPk(req.params.id);
-      if (!item) return res.status(404).json({ message: "Not found" });
+      if (!item) {
+        return res.status(404).json({
+          success: false,
+          message: "Video course not found",
+        });
+      }
+
+      const isLive = req.body.isLive === true || req.body.isLive === "true";
+
+      if (isLive) {
+        if (!req.body.DateOfLive || !req.body.TimeOfLIve) {
+          return res.status(400).json({
+            success: false,
+            message: "DateOfLive and TimeOfLIve are required when isLive is true",
+          });
+        }
+      }
 
       let imageUrl = item.imageUrl;
 
       if (req.file) {
-        if (item.imageUrl) await deleteFromS3(item.imageUrl);
+        if (item.imageUrl) {
+          await deleteFromS3(item.imageUrl);
+        }
         imageUrl = await uploadToS3(req.file, "videocourses");
       }
 
-      await item.update({ ...req.body, imageUrl });
+      const updateData = {
+        title: req.body.title ? req.body.title.trim() : item.title,
+        videoSource: req.body.videoSource || item.videoSource,
+        url: req.body.url ? req.body.url.trim() : item.url,
+        batchId: req.body.batchId ? Number(req.body.batchId) : item.batchId,
+        subjectId: req.body.subjectId ? Number(req.body.subjectId) : item.subjectId,
+        isDownloadable: req.body.isDownloadable === true || req.body.isDownloadable === "true",
+        isDemo: req.body.isDemo === true || req.body.isDemo === "true",
+        isLive: isLive,
+        DateOfLive: isLive ? req.body.DateOfLive : null,
+        TimeOfLIve: isLive ? req.body.TimeOfLIve : null,
+        status: (req.body.status === true || req.body.status === "true") ? "active" : "inactive",
+        imageUrl,
+      };
 
-      // 🔥 CLEAR CACHE
+      await item.update(updateData);
+
       await redis.del("videocourses");
       await redis.del(`videocourse:${item.id}`);
       await redis.del(`videocourses:batch:${item.batchId}`);
 
-      return res.json(item);
+      return res.json({
+        success: true,
+        message: "Video course updated successfully",
+        data: item.reload(),
+      });
     } catch (error) {
-      return res.status(500).json({ message: "Update failed", error });
+      console.error("VideoCourse Update Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Update failed",
+      });
     }
   }
-
   /* ======================
       DELETE (🔥 MAIN FIX)
   ====================== */

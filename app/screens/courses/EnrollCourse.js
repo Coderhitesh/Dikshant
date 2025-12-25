@@ -80,7 +80,6 @@ export default function EnrollCourse() {
 
   // Calculate pricing
   const originalPrice = batchData?.batchDiscountPrice || 0;
-  const gstAmount = Math.round(originalPrice * 0.18);
   const subtotal = originalPrice;
 
   const discount = appliedCoupon
@@ -91,8 +90,8 @@ export default function EnrollCourse() {
           appliedCoupon.maxDiscount || Infinity
         )
     : 0;
-console.log("discount",discount)
-  const totalAmount = Math.round(subtotal - discount + gstAmount);
+
+  const totalAmount = Math.round(subtotal - discount );
 
   const triggerHaptic = () => {
     try {
@@ -162,7 +161,7 @@ console.log("discount",discount)
           type: "batch",
           itemId: batchId,
           amount: subtotal,
-          gst: gstAmount,
+          gst: 0,
           couponCode: appliedCoupon?.code || null,
         },
         {
@@ -293,10 +292,10 @@ console.log("discount",discount)
               </View>
             )}
 
-            <View style={styles.priceRow}>
+            {/* <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>GST (18%)</Text>
               <Text style={styles.priceValue}>+ ₹{gstAmount.toLocaleString("en-IN")}</Text>
-            </View>
+            </View> */}
 
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>

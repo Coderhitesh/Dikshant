@@ -32,11 +32,11 @@ const menuOptions = [
     icon: "bell",
     screen: "Notifications",
   },
-  {
-    label: "Payment History",
-    icon: "credit-card",
-    screen: "PaymentHistory",
-  },
+  // {
+  //   label: "Payment History",
+  //   icon: "credit-card",
+  //   screen: "PaymentHistory",
+  // },
   // {
   //   label: "Downloads",
   //   icon: "download",

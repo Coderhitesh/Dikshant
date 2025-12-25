@@ -1,132 +1,242 @@
 "use strict";
-
-const { ScholarshipApplication, Scholarship, User } = require("../models");
+const NotificationController = require("./NotificationController"); 
+const { ScholarshipApplication, Scholarship } = require("../models");
 const redis = require("../config/redis");
+const uploadToS3 = require("../utils/s3Upload");
+const deleteFromS3 = require("../utils/s3Delete");
 
 class ScholarshipApplicationController {
-
-  // USER APPLY FOR SCHOLARSHIP
   static async apply(req, res) {
     try {
-      const { userId, scholarshipId } = req.body;
+      const {
+        scholarshipId,
+        fullName,
+        mobile,
+        gender,
+        category,
+        course,
+        medium,
+      } = req.body;
 
-      if (!userId || !scholarshipId)
-        return res.status(400).json({ message: "userId & scholarshipId required" });
+      const userId = req.user?.id || req.body.userId; // from auth middleware or body
 
+      // Validation
+      if (!scholarshipId || !userId || !fullName?.trim() || !mobile?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "scholarshipId, userId, fullName, and mobile are required",
+        });
+      }
+
+      if (!req.files?.certificate || !req.files?.photo) {
+        return res.status(400).json({
+          success: false,
+          message: "Both certificate and photo are required",
+        });
+      }
+
+      // Check if scholarship exists
       const scholarship = await Scholarship.findByPk(scholarshipId);
-      if (!scholarship) return res.status(404).json({ message: "Scholarship not found" });
+      if (!scholarship) {
+        return res.status(404).json({
+          success: false,
+          message: "Scholarship not found",
+        });
+      }
 
       // Prevent duplicate application
-      const already = await ScholarshipApplication.findOne({
-        where: { userId, scholarshipId }
+      const existing = await ScholarshipApplication.findOne({
+        where: { userId, scholarshipId },
       });
 
-      if (already)
-        return res.status(400).json({ message: "You already applied for this scholarship" });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "You have already applied for this scholarship",
+        });
+      }
 
-      const app = await ScholarshipApplication.create({
+      // Upload files to S3
+      const certificateFile = req.files.certificate[0];
+      const photoFile = req.files.photo[0];
+
+      const certificateUrl = await uploadToS3(certificateFile, "scholarships/certificates");
+      const photoUrl = await uploadToS3(photoFile, "scholarships/photos");
+
+      // Create application
+      const application = await ScholarshipApplication.create({
         userId,
         scholarshipId,
-        status: "pending"
+        fullName: fullName.trim(),
+        mobile: mobile.trim(),
+        gender,
+        category,
+        course,
+        medium,
+        certificatePath: certificateUrl,
+        photoPath: photoUrl,
+        status: "Pending",
       });
 
+
+       await NotificationController.createNotification({
+      userId,
+      title: "Scholarship Application Submitted",
+      message: `Your application for the "${scholarship.name}" scholarship has been submitted successfully.`,
+      type: "scholarship",
+      relatedId: application.id,
+    });
+
+
+      // Invalidate cache
       await redis.del(`scholarshipapps:sch:${scholarshipId}`);
       await redis.del(`scholarshipapps:user:${userId}`);
 
-      return res.status(201).json(app);
-
+      return res.status(201).json({
+        success: true,
+        message: "Application submitted successfully",
+        data: application,
+      });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({ message: "Error applying for scholarship", error });
+      console.error("Scholarship apply error:", error);
+
+      // Optional: cleanup uploaded files on error
+      if (req.files?.certificate) {
+        await deleteFromS3(req.files.certificate[0].key);
+      }
+      if (req.files?.photo) {
+        await deleteFromS3(req.files.photo[0].key);
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to submit application",
+      });
     }
   }
-
 
   // GET ALL APPLICATIONS FOR A SCHOLARSHIP (ADMIN)
   static async listByScholarship(req, res) {
     try {
-      const scholarshipId = req.params.scholarshipId;
+      const { scholarshipId } = req.params;
 
-      // const cacheKey = `scholarshipapps:sch:${scholarshipId}`;
-      // const cache = await redis.get(cacheKey);
-      // if (cache) return res.json(JSON.parse(cache));
+      const cacheKey = `scholarshipapps:sch:${scholarshipId}`;
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return res.json({ success: true, data: JSON.parse(cached) });
+      }
 
-      const apps = await ScholarshipApplication.findAll({
+      const applications = await ScholarshipApplication.findAll({
         where: { scholarshipId },
-        order: [["createdAt", "DESC"]]
+        include: [
+          { model: Scholarship, as: "scholarship", attributes: ["name"] },
+        ],
+        order: [["createdAt", "DESC"]],
       });
 
-      // await redis.set(cacheKey, JSON.stringify(apps), "EX", 300);
+      await redis.set(cacheKey, JSON.stringify(applications), "EX", 600);
 
-      return res.json(apps);
-
+      return res.json({ success: true, data: applications });
     } catch (error) {
-      return res.status(500).json({ message: "Error fetching applications", error });
+      console.error("listByScholarship error:", error);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
   }
 
-
-  // GET ALL APPLICATIONS OF USER
+  // GET ALL APPLICATIONS OF A USER
   static async listByUser(req, res) {
     try {
-      const userId = req.params.userId;
+      const { userId } = req.params;
 
-      // const cacheKey = `scholarshipapps:user:${userId}`;
-      // const cache = await redis.get(cacheKey);
-      // if (cache) return res.json(JSON.parse(cache));
+      const cacheKey = `scholarshipapps:user:${userId}`;
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return res.json({ success: true, data: JSON.parse(cached) });
+      }
 
-      const apps = await ScholarshipApplication.findAll({
+      const applications = await ScholarshipApplication.findAll({
         where: { userId },
-        order: [["createdAt", "DESC"]]
+        include: [
+          { model: Scholarship, as: "scholarship", attributes: ["name", "discountPercentage"] },
+        ],
+        order: [["createdAt", "DESC"]],
       });
 
-      // await redis.set(cacheKey, JSON.stringify(apps), "EX", 300);
+      await redis.set(cacheKey, JSON.stringify(applications), "EX", 600);
 
-      return res.json(apps);
-
+      return res.json({ success: true, data: applications });
     } catch (error) {
-      return res.status(500).json({ message: "Error fetching applications", error });
+      console.error("listByUser error:", error);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
   }
 
-
-  // UPDATE STATUS (ADMIN)
+  // UPDATE APPLICATION STATUS (ADMIN)
   static async updateStatus(req, res) {
     try {
       const { id } = req.params;
       const { status } = req.body;
 
-      const app = await ScholarshipApplication.findByPk(id);
-      if (!app) return res.status(404).json({ message: "Application not found" });
+      if (!["Pending", "Approved", "Rejected"].includes(status)) {
+        return res.status(400).json({ success: false, message: "Invalid status" });
+      }
 
-      await app.update({ status });
+      const application = await ScholarshipApplication.findByPk(id);
+      if (!application) {
+        return res.status(404).json({ success: false, message: "Application not found" });
+      }
 
-      await redis.del(`scholarshipapps:sch:${app.scholarshipId}`);
-      await redis.del(`scholarshipapps:user:${app.userId}`);
+      await application.update({ status });
 
-      return res.json(app);
+      // Invalidate caches
+      await redis.del(`scholarshipapps:sch:${application.scholarshipId}`);
+      await redis.del(`scholarshipapps:user:${application.userId}`);
 
+      return res.json({
+        success: true,
+        message: "Status updated",
+        data: application,
+      });
     } catch (error) {
-      return res.status(500).json({ message: "Error updating status", error });
+      console.error("updateStatus error:", error);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
   }
-  // DELETE APPLICATION
+
+  // DELETE APPLICATION (ADMIN OR USER)
   static async deleteApplication(req, res) {
     try {
       const { id } = req.params;
+      const userId = req.user?.id;
 
-      const app = await ScholarshipApplication.findByPk(id);
-      if (!app) return res.status(404).json({ message: "Application not found" });
+      const application = await ScholarshipApplication.findByPk(id);
+      if (!application) {
+        return res.status(404).json({ success: false, message: "Application not found" });
+      }
 
-      await app.destroy();
+      // Optional: restrict to owner or admin
+      // if (application.userId !== userId && !req.user.isAdmin) {
+      //   return res.status(403).json({ success: false, message: "Unauthorized" });
+      // }
 
-      await redis.del(`scholarshipapps:sch:${app.scholarshipId}`);
-      await redis.del(`scholarshipapps:user:${app.userId}`);
+      // Delete files from S3
+      if (application.certificatePath) {
+        await deleteFromS3(application.certificatePath);
+      }
+      if (application.photoPath) {
+        await deleteFromS3(application.photoPath);
+      }
 
-      return res.json({ message: "Application deleted successfully" });
+      await application.destroy();
 
+      // Invalidate cache
+      await redis.del(`scholarshipapps:sch:${application.scholarshipId}`);
+      await redis.del(`scholarshipapps:user:${application.userId}`);
+
+      return res.json({ success: true, message: "Application deleted successfully" });
     } catch (error) {
-      return res.status(500).json({ message: "Error deleting application", error });
+      console.error("deleteApplication error:", error);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
   }
 }

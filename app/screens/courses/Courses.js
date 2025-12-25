@@ -128,12 +128,13 @@ const CourseCard = ({ item: batch, navigation }) => {
     });
   };
 
-  const handlePress = () => {
-    navigation?.navigate?.("CourseDetail", { 
-      courseId: batch.id,
-      batchData: batch
-    });
-  };
+ const handlePress = () => {
+  navigation.navigate("CourseDetail", {
+    courseId: batch.id,
+    batchData: batch,
+  });
+};
+
 
   return (
     <TouchableOpacity
@@ -246,8 +247,7 @@ export default function Course() {
 
   const courses = coursesResponse?.items || [];
 
-  // Separate courses by type
-// Sort courses by createdAt (newest first)
+
 const sortedCourses = [...courses].sort(
   (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
 );
