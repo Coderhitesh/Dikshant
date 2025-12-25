@@ -18,16 +18,11 @@ module.exports = (sequelize, DataTypes) => {
 
     status: DataTypes.ENUM("active", "inactive"),
 
-    programId: DataTypes.INTEGER
-
   }, {
     tableName: 'videocourses',
     timestamps: true
   });
 
-  VideoCourse.associate = function (models) {
-    VideoCourse.belongsTo(models.Program, { foreignKey: "programId", as: "program" });
-  };
-
+ 
   return VideoCourse;
 };

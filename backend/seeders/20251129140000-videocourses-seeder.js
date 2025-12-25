@@ -16,7 +16,7 @@ module.exports = {
 
         batchId: 1,
         subjectId: 1,
-        programId: 1,
+       
 
         isDownloadable: false,
         isDemo: true,
@@ -37,7 +37,7 @@ module.exports = {
 
         batchId: 1,
         subjectId: 2,
-        programId: 1,
+       
 
         isDownloadable: true,
         isDemo: false,

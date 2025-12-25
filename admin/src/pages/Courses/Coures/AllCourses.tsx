@@ -27,7 +27,7 @@ import {
 const cn = (...classes: (string | undefined | null | false)[]) =>
   classes.filter(Boolean).join(" ");
 
-const API_URL = "https://www.dikapi.olyox.in/api/batchs";
+const API_URL = "http://localhost:5001/api/batchs";
 
 interface Subject {
   id: number;
@@ -172,6 +172,7 @@ const AllBatches = () => {
         prev.map((b) => (b.id === batch.id ? { ...b, status: newStatus as any } : b))
       );
     } catch (err: any) {
+      console.log("error", err);
       toast.error(err.response?.data?.message || "Failed to update status", {
         id: loadingToast,
       });

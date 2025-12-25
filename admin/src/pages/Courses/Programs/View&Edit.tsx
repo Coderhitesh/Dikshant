@@ -57,7 +57,7 @@ const ViewEdit = () => {
         imageUrl: data.imageUrl || "",
       });
       setImagePreview(data.imageUrl || "");
-      toast.success("Program loaded successfully");
+      // toast.success("Program loaded successfully");
     } catch (error: any) {
       console.error("Fetch error:", error);
       toast.error(error.response?.data?.message || "Failed to load program");

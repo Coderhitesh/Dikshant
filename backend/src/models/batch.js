@@ -47,20 +47,20 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: []
     },
 
-    category:{
-      type:DataTypes.STRING
-    } ,
-c_status: {
-  type: DataTypes.ENUM(
-    "Start Soon",
-    "In Progress",
-    "Partially Complete",
-    "Completed"
-  ),
-  defaultValue: "Start Soon",
-},
+    category: {
+      type: DataTypes.STRING
+    },
+    c_status: {
+      type: DataTypes.ENUM(
+        "Start Soon",
+        "In Progress",
+        "Partially Complete",
+        "Completed"
+      ),
+      defaultValue: "Start Soon",
+    },
 
-    
+
   }, {
     tableName: 'batchs',
     timestamps: true
@@ -69,7 +69,7 @@ c_status: {
   Batch.associate = function (models) {
     Batch.belongsTo(models.Program, { foreignKey: 'programId', as: 'program' });
     Batch.hasMany(models.CourseProgress, { foreignKey: 'batchId', as: 'progress' });
-    Batch.belongsToMany(models.Subject, { through: 'batch_subjects' });
+    Batch.belongsToMany(models.Subject, { through: "batch_subjects" })
   };
 
   return Batch;
