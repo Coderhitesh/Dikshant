@@ -25,12 +25,12 @@ export const SocketProvider = ({ children, userId }) => {
     // Create socket connection
     const newSocket = io('https://www.dikapi.olyox.in', {
       query: { userId },
-  transports: ["polling", "websocket"], // ✅ allow both
-  forceNew: true,
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 2000,
-  timeout: 20000
+      transports: ["polling", "websocket"], // ✅ allow both
+      forceNew: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      timeout: 20000
     })
 
     // Connection event listeners
