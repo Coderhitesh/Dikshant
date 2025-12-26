@@ -78,8 +78,10 @@ export default function EnrollCourse() {
       new Date(coupon.validTill) > new Date()
   );
 
+  // console.log("batchData",batchData)
+
   // Calculate pricing
-  const originalPrice = batchData?.batchDiscountPrice || 0;
+  const originalPrice = batchData?.batchDiscountPrice || batchData?.batchPrice || 0;
   const subtotal = originalPrice;
 
   const discount = appliedCoupon
