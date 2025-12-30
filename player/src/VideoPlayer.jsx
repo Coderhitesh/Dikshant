@@ -45,7 +45,7 @@ export default function VideoPlayer({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const API_BASE = "http://192.168.1.9:5001/api";
+  const API_BASE = "https://www.dikapi.olyox.in/api";
 
   // Video Resume Feature - Netflix jaisa
   const getVideoId = () => {

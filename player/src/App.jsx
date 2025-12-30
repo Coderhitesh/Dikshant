@@ -141,14 +141,14 @@ function LMSContent() {
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
         const [batchRes, videosRes] = await Promise.all([
-          fetch("http://192.168.1.9:5001/api/batchs/8", {
+          fetch("https://www.dikapi.olyox.in/api/batchs/8", {
             signal: controller.signal,
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           }),
-          fetch("http://192.168.1.9:5001/api/videocourses/batch/8", {
+          fetch("https://www.dikapi.olyox.in/api/videocourses/batch/8", {
             signal: controller.signal,
             headers: {
               'Authorization': `Bearer ${token}`,

@@ -21,7 +21,7 @@ export default function useAuth(token) {
 
     try {
       const response = await axios.get(
-        "http://192.168.1.9:5001/api/auth/profile-details",
+        "https://www.dikapi.olyox.in/api/auth/profile-details",
         {
           headers: {
             Authorization: `Bearer ${token}`,

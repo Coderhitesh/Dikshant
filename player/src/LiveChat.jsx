@@ -46,7 +46,7 @@ export default function LiveChat({
   const fetchChatHistory = async () => {
     try {
       const res = await fetch(
-        `http://192.168.1.9:5001/api/chat/history/${videoId}?limit=500`
+        `https://www.dikapi.olyox.in/api/chat/history/${videoId}?limit=500`
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
