@@ -72,6 +72,19 @@
         "USE_FULL_SCREEN_INTENT",
         "SYSTEM_ALERT_WINDOW"
       ],
+       "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.example.com"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "notification": {
         "icon": "./assets/images/logo.png",

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
-  Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -24,12 +23,14 @@ export default function LiveVideoPlayer({
   onShowComments,
   onShowDoubts,
   onShowMyDoubts,
+  onLiveEnded, // Callback when live ends
 }) {
   const [isLive, setIsLive] = useState(true);
   const [canJoin, setCanJoin] = useState(false);
   const [timeToLive, setTimeToLive] = useState('');
   const [showChat, setShowChat] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [hasEnded, setHasEnded] = useState(false);
 
   const { socket, isConnected } = useSocket();
 
@@ -52,7 +53,26 @@ export default function LiveVideoPlayer({
     const timeDiff = liveDateTime.getTime() - now.getTime();
     const minutesDiff = Math.floor(timeDiff / (1000 * 60));
 
-    if (minutesDiff <= 5 && minutesDiff >= -60) {
+    // Assume live session duration is 2 hours
+    const sessionDurationMinutes = 120;
+    const minutesSinceStart = -minutesDiff;
+
+    // Live has ended
+    if (minutesSinceStart > sessionDurationMinutes) {
+      setHasEnded(true);
+      setCanJoin(false);
+      setIsLive(false);
+      setTimeToLive('✅ Live session ended');
+      
+      // Notify parent component
+      if (onLiveEnded) {
+        onLiveEnded();
+      }
+      return;
+    }
+
+    // Can join (5 mins before to during session)
+    if (minutesDiff <= 5 && minutesSinceStart <= sessionDurationMinutes) {
       setCanJoin(true);
       if (minutesDiff <= 0) {
         setIsLive(true);
@@ -63,13 +83,22 @@ export default function LiveVideoPlayer({
     } else if (minutesDiff > 5) {
       setCanJoin(false);
       setTimeToLive(`⏱️ Starts at ${liveDateTime.toLocaleTimeString()}`);
-    } else {
-      setCanJoin(false);
-      setTimeToLive('📺 Live session ended');
     }
   };
 
   useEffect(() => {
+    // Check if already marked as ended in video data
+    if (video.isLiveEnded === true) {
+      setHasEnded(true);
+      setCanJoin(false);
+      setIsLive(false);
+      setTimeToLive('✅ Live session ended');
+      if (onLiveEnded) {
+        onLiveEnded();
+      }
+      return;
+    }
+
     checkLiveStatus();
     const interval = setInterval(checkLiveStatus, 60000);
     return () => clearInterval(interval);
@@ -99,12 +128,10 @@ export default function LiveVideoPlayer({
     if (!socket) return;
 
     const handleUserJoined = (data) => {
-      console.log('User joined live session:', data);
       setViewerCount(data.viewerCount);
     };
 
     const handleUserLeft = (data) => {
-      console.log('User left live session:', data);
       setViewerCount(data.viewerCount);
     };
 
@@ -112,6 +139,15 @@ export default function LiveVideoPlayer({
       if (data.videoId === video.id) {
         setIsLive(data.isLive);
         setViewerCount(data.viewerCount);
+        
+        // If server says live has ended
+        if (data.hasEnded) {
+          setHasEnded(true);
+          setCanJoin(false);
+          if (onLiveEnded) {
+            onLiveEnded();
+          }
+        }
       }
     };
 
@@ -128,6 +164,28 @@ export default function LiveVideoPlayer({
 
   const videoId = getYouTubeId(video?.url);
 
+  // Show ended state with option to watch recording
+  if (hasEnded) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.endedContainer}>
+          <Feather name="check-circle" size={64} color={colors.success} />
+          <Text style={styles.endedTitle}>Live Session Ended</Text>
+          <Text style={styles.endedSubtext}>
+            This live session has concluded. You can now watch the recording.
+          </Text>
+          <TouchableOpacity 
+            style={styles.watchRecordingButton}
+            onPress={onLiveEnded}
+          >
+            <Feather name="play-circle" size={20} color="#fff" />
+            <Text style={styles.watchRecordingText}>Watch Recording</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Live Status Header */}
@@ -137,9 +195,9 @@ export default function LiveVideoPlayer({
           <Text style={styles.liveStatus}>{timeToLive}</Text>
         </View>
         
-        {isLive && (
+        {viewerCount > 0 && (
           <View style={styles.viewerCount}>
-            <Feather name="eye" size={16} color={colors.textLight} />
+            <Feather name="eye" size={14} color={colors.textLight} />
             <Text style={styles.viewerCountText}>{viewerCount} watching</Text>
           </View>
         )}
@@ -183,14 +241,12 @@ export default function LiveVideoPlayer({
           </View>
 
           <View style={styles.playerActions}>
-            {!canJoin && (
+            {!canJoin && !hasEnded && (
               <TouchableOpacity 
                 onPress={handleJoinLive} 
                 style={[styles.joinButton, canJoin && styles.joinButtonActive]}
               >
-                <Text style={styles.joinButtonText}>
-                  {canJoin ? 'Join Live' : 'Waiting...'}
-                </Text>
+                <Text style={styles.joinButtonText}>Waiting...</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -199,7 +255,7 @@ export default function LiveVideoPlayer({
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        {isLive && (
+        {isLive && canJoin && (
           <TouchableOpacity 
             style={styles.actionBarButton} 
             onPress={() => setShowChat(true)}
@@ -224,7 +280,7 @@ export default function LiveVideoPlayer({
       <LiveChat
         videoId={video.id}
         userId={userId}
-        visible={showChat && isLive}
+        visible={showChat && isLive && canJoin}
         onClose={() => setShowChat(false)}
         onLiveCountChange={setViewerCount}
       />
@@ -240,6 +296,41 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  endedContainer: {
+    backgroundColor: colors.card,
+    padding: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+  endedTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  endedSubtext: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  watchRecordingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 25,
+  },
+  watchRecordingText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   liveHeader: {
     flexDirection: 'row',

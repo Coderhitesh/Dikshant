@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  Share,
+  Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -13,10 +15,9 @@ import * as Haptics from 'expo-haptics';
 import { colors } from '../constant/color';
 import { useVideoProgress } from '../context/VideoProgressContext';
 
-const { width } = Dimensions.get('window');
-const isTablet = width >= 768;
-
-
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const isTablet = SCREEN_WIDTH >= 768;
+const PLAYER_HEIGHT_PORTRAIT = isTablet ? 400 : 240;
 
 export default function VideoPlayer({
   video,
@@ -29,12 +30,32 @@ export default function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [volume, setVolume] = useState(100);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [screenDimensions, setScreenDimensions] = useState({
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  });
+  const [showMenu, setShowMenu] = useState(false);
 
   const playerRef = useRef(null);
   const { saveProgress, getProgress } = useVideoProgress();
+
+  // Listen to screen dimension changes (rotation)
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenDimensions({
+        width: window.width,
+        height: window.height,
+      });
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  // Dynamic player dimensions based on actual screen size
+  const isLandscape = screenDimensions.width > screenDimensions.height;
+  const playerHeight = isLandscape ? screenDimensions.height * 0.7 : PLAYER_HEIGHT_PORTRAIT;
+  const playerWidth = screenDimensions.width;
 
   const getYouTubeId = (url) => {
     if (!url) return null;
@@ -45,28 +66,47 @@ export default function VideoPlayer({
   };
 
   const formatTime = (seconds) => {
+    if (!seconds) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Load saved progress when video changes
+  const videoId = getYouTubeId(video?.url);
+
+  // Manual fullscreen toggle (no orientation locking)
+  const toggleFullscreen = async () => {
+    try {
+      const newFullscreen = !isFullscreen;
+      setIsFullscreen(newFullscreen);
+
+      // Try to trigger native fullscreen (works on Android, sometimes on iOS)
+      if (playerRef.current?.setFullscreen) {
+        playerRef.current.setFullscreen(newFullscreen);
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.warn('Fullscreen toggle failed:', error);
+    }
+  };
+
+  // Load saved progress
   useEffect(() => {
     if (video && userId) {
       const loadProgress = async () => {
         const savedPosition = await getProgress(video.id);
-        if (savedPosition > 30) { // Only resume if more than 30 seconds watched
+        if (savedPosition > 30) {
           Alert.alert(
-            'Resume Video',
-            `Continue from ${formatTime(savedPosition)}?`,
+            'Resume Video?',
+            `Continue from ${formatTime(savedPosition)}`,
             [
-              { text: 'Start Over', style: 'cancel' },
+              { text: 'Start from beginning', style: 'cancel' },
               {
                 text: 'Resume',
                 onPress: () => {
                   setTimeout(() => {
                     playerRef.current?.seekTo(savedPosition, true);
-                    setCurrentTime(savedPosition);
                   }, 1000);
                 },
               },
@@ -76,112 +116,136 @@ export default function VideoPlayer({
       };
       loadProgress();
     }
-  }, [video, userId]);
+  }, [video?.id, userId]);
 
   // Auto-save progress every 10 seconds
   useEffect(() => {
-    if (!video || !isPlaying || currentTime === 0) return;
+    if (!video || !isPlaying || videoDuration === 0) return;
 
     const interval = setInterval(() => {
       saveProgress(video.id, courseId, currentTime, videoDuration);
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [video, currentTime, videoDuration, isPlaying, courseId]);
+  }, [currentTime, videoDuration, isPlaying, video?.id, courseId]);
 
-  const handleBookmark = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('✅ Bookmarked', `${video?.title} added to bookmarks`);
+  const onStateChange = (state) => {
+    setIsPlaying(state === 'playing');
+    if (state === 'ended') {
+      playerRef.current?.seekTo(0, true);
+      setIsPlaying(true);
+    }
   };
 
-  const handleOpenDoubts = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onShowDoubts();
-  };
-
-  const progressPercentage = videoDuration > 0 ? (currentTime / videoDuration) * 100 : 0;
-  const videoId = getYouTubeId(video?.url);
-
-  if (!video) return null;
+  if (!video || !videoId) {
+    return (
+      <View style={styles.fallbackContainer}>
+        <Feather name="video-off" size={48} color="#666" />
+        <Text style={styles.fallbackText}>Video not available</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.playerBackground}>
+      {/* Player with dynamic size based on actual screen dimensions */}
+      <View style={[styles.playerWrapper, { height: playerHeight }]}>
         <YoutubePlayer
           ref={playerRef}
-          height={isTablet ? 400 : 240}
-          width={width}
+          height={playerHeight}
+          width={playerWidth}
           videoId={videoId}
           play={isPlaying}
-          volume={isMuted ? 0 : volume}
-          playbackRate={playbackSpeed}
+          volume={100}
+          onChangeState={onStateChange}
           onProgress={(data) => {
             setCurrentTime(data.currentTime);
-            setVideoDuration(data.duration);
-          }}
-          onChangeState={(state) => {
-            if (state === 'playing') setIsPlaying(true);
-            if (state === 'paused') setIsPlaying(false);
+            setVideoDuration(data.duration || videoDuration);
           }}
           initialPlayerParams={{
             controls: true,
             rel: false,
             modestbranding: true,
-            fs: true,
-            playsinline: 1,
+            showinfo: false,
+            loop: false,
+            playsinline: true,
           }}
           webViewProps={{
             allowsInlineMediaPlayback: true,
+            onMessage: (event) => {
+              console.log("📩 WebView message:", event.nativeEvent.data);
+            },
             mediaPlaybackRequiresUserAction: false,
+            injectedJavaScript: `
+  (function() {
+    console.log("🔥 Injected JS started");
+
+    const style = document.createElement('style');
+    style.innerHTML = \`
+      .ytp-menu-button { display: none !important; }
+      .ytp-settings-button { display: none !important; }
+      .ytp-button[aria-label*="More"] { display: none !important; }
+      .ytp-button[aria-label*="Share"] { display: none !important; }
+      .ytp-button[aria-label*="share"] { display: none !important; }
+      [aria-label*="Share"] { display: none !important; }
+    \`;
+    document.head.appendChild(style);
+
+    console.log("✅ CSS injected");
+
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      console.log("🚫 Right click blocked");
+      return false;
+    });
+
+    // 👇 SEND MESSAGE TO REACT NATIVE
+    window.ReactNativeWebView.postMessage(
+      JSON.stringify({ type: "INJECTED_JS", status: "RUNNING" })
+    );
+  })();
+`
+
           }}
+          forceAndroidAutoplay={true}
         />
 
-        {/* Progress Bar */}
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${Math.min(progressPercentage, 100)}%` },
-            ]}
-          />
-        </View>
-
-        {/* Video Info Header */}
-        <View style={styles.playerHeader}>
-          <View style={styles.titleSection}>
-            <Text style={styles.playerTitle} numberOfLines={2}>
-              {video.title}
-            </Text>
-            <Text style={styles.playerTime}>
-              {formatTime(currentTime)} / {formatTime(videoDuration)}
-            </Text>
-          </View>
-
-          <View style={styles.playerActions}>
-            <TouchableOpacity onPress={handleBookmark} style={styles.iconButton}>
-              <Feather name="bookmark" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Center Play Button when paused */}
+        {!isPlaying && (
+          <TouchableOpacity
+            style={styles.centerPlayButton}
+            onPress={() => setIsPlaying(true)}
+          >
+            <Feather name="play" size={64} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Action Bar */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity style={styles.actionBarButton} onPress={onShowComments}>
-          <Feather name="message-circle" size={22} color={colors.primary} />
-          <Text style={styles.actionBarLabel}>Comments</Text>
-        </TouchableOpacity>
+      {/* Action Bar - visible only in portrait mode */}
+      {!isLandscape && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity style={styles.actionButton} onPress={onShowComments}>
+            <Feather name="message-circle" size={24} color={colors.primary} />
+            <Text style={styles.actionLabel}>Comments</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBarButton} onPress={handleOpenDoubts}>
-          <Feather name="help-circle" size={22} color={colors.primary} />
-          <Text style={styles.actionBarLabel}>Ask Doubt</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={onShowDoubts}>
+            <Feather name="help-circle" size={24} color={colors.primary} />
+            <Text style={styles.actionLabel}>Ask Doubt</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBarButton} onPress={onShowMyDoubts}>
-          <Feather name="list" size={22} color={colors.primary} />
-          <Text style={styles.actionBarLabel}>My Doubts</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.actionButton} onPress={onShowMyDoubts}>
+            <Feather name="list" size={24} color={colors.primary} />
+            <Text style={styles.actionLabel}>My Doubts</Text>
+          </TouchableOpacity>
+
+          {/* Fullscreen Toggle Button */}
+          <TouchableOpacity style={styles.actionButton} onPress={toggleFullscreen}>
+            <Feather name="maximize-2" size={24} color={colors.primary} />
+            <Text style={styles.actionLabel}>Full Screen</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -189,81 +253,54 @@ export default function VideoPlayer({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#000',
-    elevation: 8,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
-  playerBackground: {
-    backgroundColor: '#000',
+  playerWrapper: {
     position: 'relative',
+    backgroundColor: '#000',
+    overflow: 'hidden',
+    width: '100%',
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  playerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.card,
-  },
-  titleSection: {
-    flex: 1,
-    marginRight: 12,
-  },
-  playerTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  playerTime: {
-    fontSize: 12,
-    color: colors.textLight,
-    fontWeight: '600',
-  },
-  playerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryLight,
+  centerPlayButton: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   actionBar: {
     flexDirection: 'row',
     backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  actionBarButton: {
+  actionButton: {
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 12,
     minWidth: 80,
   },
-  actionBarLabel: {
-    fontSize: 11,
+  actionLabel: {
     color: colors.text,
-    marginTop: 4,
+    fontSize: 12,
     fontWeight: '600',
+    marginTop: 6,
+  },
+  fallbackContainer: {
+    height: PLAYER_HEIGHT_PORTRAIT,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fallbackText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 12,
   },
 });

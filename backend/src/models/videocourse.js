@@ -3,10 +3,10 @@
 module.exports = (sequelize, DataTypes) => {
   const VideoCourse = sequelize.define('VideoCourse', {
 
-    id: { 
-      type: DataTypes.INTEGER, 
-      autoIncrement: true, 
-      primaryKey: true 
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true
     },
 
     imageUrl: DataTypes.STRING,
@@ -27,20 +27,29 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: false,
       allowNull: false
     },
-    isLiveEnded:{
-  type: DataTypes.BOOLEAN,
+    isLiveEnded: {
+      type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    LiveEndAt:{ type: DataTypes.DATEONLY, allowNull:true},
+    LiveEndAt: { type: DataTypes.DATEONLY, allowNull: true },
     DateOfLive: {
-      type: DataTypes.DATEONLY,    
-      allowNull: true           
+      type: DataTypes.DATEONLY,
+      allowNull: true
     },
 
     TimeOfLIve: {
-      type: DataTypes.TIME,     
-      allowNull: true       
+      type: DataTypes.TIME,
+      allowNull: true
     },
+
+    dateOfClass: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    TimeOfClass: {
+      type: DataTypes.TIME,
+      allowNull: true
+    }
 
   }, {
     tableName: 'videocourses',

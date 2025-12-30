@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
     status: DataTypes.ENUM('active', 'inactive'),
 
     shortDescription: DataTypes.STRING,
-    longDescription: DataTypes.TEXT,
+  longDescription: DataTypes.TEXT,
 
     batchPrice: DataTypes.FLOAT,
     batchDiscountPrice: DataTypes.FLOAT,

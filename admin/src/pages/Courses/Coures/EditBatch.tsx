@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -16,6 +16,7 @@ import {
   Calculator,
   ChevronDown,
 } from "lucide-react";
+import JoditEditor from "jodit-react";
 
 const BATCH_API = "https://www.dikapi.olyox.in/api/batchs";
 const SUBJECTS_API = "https://www.dikapi.olyox.in/api/subjects";
@@ -98,6 +99,7 @@ const EditBatch = () => {
     offerValidityDays: 0,
     category: "", // 👈 ADD
   });
+  const editor = useRef(null);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -126,6 +128,14 @@ const EditBatch = () => {
 
   const totalEmi = emiSchedule.reduce((sum, item) => sum + item.amount, 0);
 
+    const config = useMemo(
+      () => ({
+        readonly: false, // all options from https://xdsoft.net/jodit/docs/,
+        placeholder: "Write Long Discription",
+      }),
+      []
+    );
+  
   // Fetch batch data
   useEffect(() => {
     const fetchData = async () => {
@@ -623,16 +633,15 @@ const EditBatch = () => {
               </div>
               <div>
                 <Label className="text-sm">Long Description</Label>
-                <TextArea
+               
+                 <JoditEditor
+                  ref={editor}
                   value={formData.longDescription}
-                  onChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      longDescription: value,
-                    })
-                  }
-                  rows={3}
-                  className="text-sm"
+                  config={config}
+                  tabIndex={99999} // tabIndex of textarea
+                  onChange={(value) => {
+                    setFormData({ ...formData, longDescription: value });
+                  }}
                 />
               </div>
             </div>

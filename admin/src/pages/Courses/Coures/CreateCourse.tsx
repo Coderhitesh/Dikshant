@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -8,6 +8,7 @@ import Input from "../../../components/form/input/InputField";
 import TextArea from "../../../components/form/input/TextArea";
 import Form from "../../../components/form/Form";
 import Label from "../../../components/form/Label";
+import JoditEditor from "jodit-react";
 import {
   Loader2,
   Upload,
@@ -74,6 +75,16 @@ const CreateBatch = () => {
   const [emiSchedule, setEmiSchedule] = useState<
     Array<{ month: number; amount: number }>
   >([]);
+
+  const editor = useRef(null);
+
+  const config = useMemo(
+    () => ({
+      readonly: false, // all options from https://xdsoft.net/jodit/docs/,
+      placeholder: "Write Long Discription",
+    }),
+    []
+  );
 
   const [formData, setFormData] = useState<CreateBatchFormData>({
     name: "",
@@ -590,14 +601,16 @@ const CreateBatch = () => {
               </div>
               <div>
                 <Label className="text-sm">Long Description</Label>
-                <TextArea
+               
+
+                <JoditEditor
+                  ref={editor}
                   value={formData.longDescription}
-                  onChange={(value) =>
-                    setFormData({ ...formData, longDescription: value })
-                  }
-                  rows={3}
-                  className="text-sm"
-                  placeholder="Detailed description (optional)"
+                  config={config}
+                  tabIndex={99999} // tabIndex of textarea
+                  onChange={(value) => {
+                    setFormData({ ...formData, longDescription: value });
+                  }}
                 />
               </div>
             </div>

@@ -20,7 +20,7 @@ import { fetcher } from "../../constant/fetcher";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import YoutubePlayer from "react-native-youtube-iframe";
-
+import WebView from "react-native-webview";
 const { width } = Dimensions.get("window");
 
 // Updated color scheme
@@ -125,7 +125,7 @@ export default function CourseDetail() {
   const navigation = useNavigation();
   const { courseId: batchId } = route.params || {};
   const insets = useSafeAreaInsets();
-
+  const [webHeight, setWebHeight] = useState(0);
   const isGestureNavigation = insets.bottom >= BOTTOM_GESTURE_THRESHOLD;
   const TAB_BAR_HEIGHT = isGestureNavigation ? 72 : 56;
 
@@ -193,7 +193,7 @@ export default function CourseDetail() {
     const discount = Math.round(
       ((batchData.batchPrice - (batchData?.batchDiscountPrice ?? 0)) /
         batchData.batchPrice) *
-        100
+      100
     );
     return Math.max(0, Math.min(100, discount)); // Ensure 0-100%
   }, [hasDiscount, batchData]);
@@ -294,6 +294,37 @@ export default function CourseDetail() {
     );
   }
 
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {
+       font-size: 14px;
+          line-height: 1.7;
+          color: #333;
+          padding: 0;
+          margin: 0;
+      }
+      p {
+        margin-bottom: 12px;
+      }
+    </style>
+  </head>
+   <body>
+      ${batchData?.longDescription}
+      <script>
+        setTimeout(() => {
+          window.ReactNativeWebView.postMessage(
+            document.documentElement.scrollHeight
+          );
+        }, 300);
+      </script>
+    </body>
+  </html>
+`;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* Header */}
@@ -365,19 +396,23 @@ export default function CourseDetail() {
           </View>
         </View>
 
-        {/* Long Description */}
+
         {batchData?.longDescription && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About This Course</Text>
+          <View style={styles.section}> <Text style={styles.sectionTitle}>About This Course</Text>
             <View style={styles.descriptionCard}>
-              <Text style={styles.descriptionText}>
-                {batchData.longDescription}
-              </Text>
+              <WebView
+                originWhitelist={['*']}
+                androidLayerType="hardware"
+                nestedScrollEnabled={true}
+                source={{ html: htmlContent }}
+                style={{ height: 450 }}    
+                scrollEnabled={true}   
+                showsVerticalScrollIndicator={true}
+              />
             </View>
           </View>
-        )}
 
-        {/* Subjects Section */}
+        )}     {/* Subjects Section */}
         {Array.isArray(batchData?.subjects) && batchData.subjects.length > 0 && (
           <View style={styles.section}>
             <AccordionItem

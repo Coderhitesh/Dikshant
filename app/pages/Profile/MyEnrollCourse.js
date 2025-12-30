@@ -6,8 +6,7 @@ import useSWR from 'swr';
 import { useAuthStore } from '../../stores/auth.store';
 import { fetcher } from '../../constant/fetcher';
 import CourseHeader from '../CourseComponets/CourseHeader';
-import VideoPlayer from '../../utils/VideoPlayer';
-import LiveVideoPlayer from '../../utils/LiveVideoPlayer';
+import SmartVideoPlayer from '../../utils/SmartVideoPlayer';
 import VideoList from '../CourseComponets/VideoList';
 import { colors } from '../../constant/color';
 import CommentsPanel from '../CourseComponets/CommentsPanel';
@@ -15,6 +14,7 @@ import DoubtsModal from '../CourseComponets/DoubtsModal';
 import MyDoubtsModal from '../CourseComponets/MyDoubtsModal';
 import { VideoProgressProvider } from '../../context/VideoProgressContext';
 import LoadingScreen from '../CourseComponets/LoadingScreen';
+import LockedScreen from '../CourseComponets/LockedScreen';
 import { SocketProvider } from '../../context/SocketContext';
 
 export default function CourseScreen() {
@@ -64,6 +64,20 @@ export default function CourseScreen() {
     setShowMyDoubts(false);
   };
 
+  // Handle when live session ends - force switch to regular player
+  const handleLiveEnded = () => {
+    // Force re-render by updating the video object
+    if (currentVideo) {
+      setCurrentVideo({
+        ...currentVideo,
+        isLiveEnded: true,
+      });
+    }
+    
+    // Optionally refresh videos data to get updated status from server
+    mutateVideos();
+  };
+
   if (batchLoading || videosLoading) {
     return <LoadingScreen message="Loading your course..." />;
   }
@@ -72,7 +86,6 @@ export default function CourseScreen() {
     return <LockedScreen />;
   }
 
-  console.log("currentVideo.isLiveEnded",currentVideo?.isLiveEnded)
   return (
     <SocketProvider userId={user?.id}>
       <VideoProgressProvider userId={user?.id} courseId={courseId}>
@@ -96,39 +109,32 @@ export default function CourseScreen() {
               />
             )}
 
-
-            {/* Video Player */}
+            {/* Smart Video Player - Automatically switches between Live and Regular */}
             {currentVideo && (
-              currentVideo.isLive === true && currentVideo.isLiveEnded === false ? (
-                <LiveVideoPlayer
-                  video={currentVideo}
-                  userId={user?.id}
-                  onShowComments={() => setShowComments(true)}
-                  onShowDoubts={() => setShowDoubts(true)}
-                  onShowMyDoubts={() => setShowMyDoubts(true)}
-                />
-              ) : (
-                <VideoPlayer
-                  video={currentVideo}
-                  userId={user?.id}
-                  courseId={courseId}
-                  onShowComments={() => setShowComments(true)}
-                  onShowDoubts={() => setShowDoubts(true)}
-                  onShowMyDoubts={() => setShowMyDoubts(true)}
-                />
-              )
+              <SmartVideoPlayer
+                video={currentVideo}
+                userId={user?.id}
+                courseId={courseId}
+                onShowComments={() => setShowComments(true)}
+                onShowDoubts={() => setShowDoubts(true)}
+                onShowMyDoubts={() => setShowMyDoubts(true)}
+                onLiveEnded={handleLiveEnded}
+              />
             )}
 
             {/* Video List */}
             {currentVideo ? null : (
               <VideoList
                 videos={videos}
+                startDate={batchData?.startDate}
+                endDate={batchData?.endDate}
                 currentVideo={currentVideo}
+                            courseId={courseId}
+
                 onVideoSelect={handleVideoSelect}
                 userId={user?.id}
               />
             )}
-
           </ScrollView>
 
           {/* Comments Panel */}
@@ -146,7 +152,7 @@ export default function CourseScreen() {
             videoId={currentVideo?.id}
             courseId={courseId}
             userId={user?.id}
-            currentTime={0} // Pass from video player
+            currentTime={0}
           />
 
           {/* My Doubts Modal */}

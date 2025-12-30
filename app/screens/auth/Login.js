@@ -24,6 +24,7 @@ import * as Application from "expo-application";
 import img1 from "../../assets/images/bg.png";
 import img2 from "../../assets/images/g.png";
 import { getDeviceInfo, getFCMToken } from "../../utils/permissions";
+import { colors } from "../../constant/color";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const images = [img2, img1];
@@ -411,6 +412,7 @@ export default function Login({ navigation }) {
                               ) : null}
                             </View>
                             <Button
+                              color={colors.card}
                               title={isLoading ? "Sending..." : "Send OTP"}
                               onPress={handleSendOtp}
                               disabled={isLoading}

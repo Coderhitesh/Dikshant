@@ -73,7 +73,22 @@ export default function App() {
   const fcmUnsubscribe = useRef();
   const appState = useRef(AppState.currentState);
   const navigationRef = useRef();
+  
   const { token ,user } = useAuthStore();
+
+
+  const linking = {
+    prefixes: ["http://192.168.1.9:5173"],
+    config: {
+      screens: {
+        Home: "app/open-home",
+        MyEnrollCourse: "app/my-enroll",
+      },
+    },
+  };
+
+
+
   useEffect(() => {
     initializeApp();
 
@@ -295,7 +310,7 @@ export default function App() {
 
   return (
     <SocketProvider userId={user?.id}>
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <StatusBar style="auto" />
       <Stack.Navigator
         initialRouteName="Splash"

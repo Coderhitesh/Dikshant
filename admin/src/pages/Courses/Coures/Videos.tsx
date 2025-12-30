@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
-const API_URL = "https://www.dikapi.olyox.in/api/videocourses";
-const BATCHS_API = "https://www.dikapi.olyox.in/api/batchs";
+const API_URL = "http://192.168.1.9:5001/api/videocourses";
+const BATCHS_API = "http://192.168.1.9:5001/api/batchs";
 const ITEMS_PER_PAGE = 10;
 
 interface Subject {
@@ -41,6 +41,8 @@ interface VideoItem {
   status: "active" | "inactive";
   batchId: number;
   isLive?: boolean;
+  dateOfClass: string;
+  TimeOfClass: string;
   DateOfLive?: string;
   TimeOfLIve?: string;
   isLiveEnded?: boolean;
@@ -53,6 +55,8 @@ interface FormData {
   isLive: boolean;
   DateOfLive: string;
   TimeOfLIve: string;
+  dateOfClass: string;
+  TimeOfClass: string;
   subjectId: string;
   isDownloadable: boolean;
   isDemo: boolean;
@@ -92,6 +96,8 @@ export default function CourseVideos() {
     DateOfLive: getCurrentDate(),
     TimeOfLIve: getCurrentTime(),
     subjectId: "",
+    dateOfClass: "",
+    TimeOfClass: "",
     isDownloadable: false,
     isDemo: false,
     status: true,
@@ -148,6 +154,8 @@ export default function CourseVideos() {
       DateOfLive: "",
       TimeOfLIve: "",
       subjectId: "",
+      dateOfClass: "",
+      TimeOfClass: "",
       isDownloadable: false,
       isDemo: false,
       status: true,
@@ -165,6 +173,8 @@ export default function CourseVideos() {
       url: v.url,
       subjectId: v.subjectId.toString(),
       isDownloadable: v.isDownloadable,
+      dateOfClass: v.dateOfClass,
+      TimeOfClass: v.TimeOfClass,
       isDemo: v.isDemo,
       isLive: v.isLive || false,
       DateOfLive: v.DateOfLive || "",
@@ -242,6 +252,8 @@ export default function CourseVideos() {
       data.append("DateOfLive", form.DateOfLive);
       data.append("TimeOfLIve", form.TimeOfLIve);
     }
+    data.append("dateOfClass", form.dateOfClass);
+    data.append("TimeOfClass", form.TimeOfClass);
 
     if (thumbnail) data.append("imageUrl", thumbnail);
 
@@ -829,6 +841,46 @@ export default function CourseVideos() {
                 </label>
               </div>
 
+                    {!form.isLive && (
+                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  {/* DATE */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Date Of Class *
+                    </label>
+                    <input
+                      type="date"
+                      value={form.dateOfClass}
+                      onChange={(e) =>
+                        setForm({ ...form, dateOfClass: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {/* TIME */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Time of Class *
+                    </label>
+                    <input
+                      type="time"
+                      value={form.TimeOfClass}
+                      min={
+                        form.dateOfClass === getCurrentDate()
+                          ? getCurrentTime() // ❌ past time blocked only for today
+                          : undefined
+                      }
+                      onChange={(e) =>
+                        setForm({ ...form, TimeOfClass: e.target.value })
+                      }
+                      className="w-full px-3 py-2 text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+                    )}
               {/* Live Date/Time */}
               {form.isLive && (
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">

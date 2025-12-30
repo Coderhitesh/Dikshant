@@ -3,7 +3,7 @@ import React from "react";
 import { colors } from "../constant/color";
 import useFontStyle from "../hooks/useFontLoad";
 
-export default function Button({ title, onPress, style, textStyle }) {
+export default function Button({ title, onPress, style, textStyle, color }) {
     const fontsLoaded = useFontStyle();
 
     if (!fontsLoaded) return null;
@@ -14,7 +14,7 @@ export default function Button({ title, onPress, style, textStyle }) {
             activeOpacity={0.8}
             style={[
                 {
-                    backgroundColor: colors.primary,
+                    backgroundColor:  colors.primary,
                     paddingVertical: 14,
                     paddingHorizontal: 20,
                     borderRadius: 10,
@@ -29,7 +29,7 @@ export default function Button({ title, onPress, style, textStyle }) {
                     {
                         fontFamily: "Geist",
                         fontSize: 16,
-                        color: colors.white,
+                        color: color || colors.white,
                         fontWeight: "600",
                     },
                     textStyle,

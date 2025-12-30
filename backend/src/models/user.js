@@ -19,8 +19,7 @@ module.exports = (sequelize, DataTypes) => {
       fcm_update_at: DataTypes.DATE,
       device_id: DataTypes.STRING,
       platform: DataTypes.STRING,
-appVersion: { type: DataTypes.STRING, field: 'app_version' },
-
+      appVersion: { type: DataTypes.STRING, field: 'app_version' },
       refresh_token: DataTypes.STRING,
       city: DataTypes.STRING,
       address: DataTypes.STRING,
