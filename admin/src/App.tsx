@@ -36,6 +36,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import StudnetsJoined from "./pages/Courses/Coures/StudnetsJoined";
 import StudentChats from "./pages/Courses/Coures/StudentChats";
 import ViewComments from "./pages/Courses/Coures/ViewComments";
+import SendNotification from "./pages/Notifications/SendNotification";
 
 export default function App(){
   return (
@@ -82,6 +83,10 @@ export default function App(){
                 path="/all-courses/add-video/:id"
                 element={<CourseVideos />}
               />
+
+              {/* end-notification */}
+              <Route path="/send-notification"element={<SendNotification />} />
+
 
               {/* Subjects */}
               <Route path="/all-subject" element={<AllSubject />} />

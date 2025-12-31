@@ -11,6 +11,7 @@ class AnnouncementController {
       const payload = {
         title: req.body.title,
         message: req.body.message,
+        description: req.body.description,
         publishDate: req.body.publishDate
       };
 
@@ -85,6 +86,8 @@ class AnnouncementController {
       await item.update({
         title: req.body.title || item.title,
         message: req.body.message || item.message,
+        description: req.body.description || item.description,
+
         publishDate: req.body.publishDate || item.publishDate
       });
 

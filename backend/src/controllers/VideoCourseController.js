@@ -1,9 +1,10 @@
 "use strict";
 
-const { VideoCourse } = require("../models");
+const { VideoCourse, Order, Coupon, Batch, Program, Subject, } = require("../models");
 const redis = require("../config/redis");
 const uploadToS3 = require("../utils/s3Upload");
 const deleteFromS3 = require("../utils/s3Delete");
+const { encryptVideoPayload, decryptVideoToken } = require("../utils/videoCrypto");
 // const NotificationController = require("./NotificationController");
 
 class VideoCourseController {
@@ -132,41 +133,158 @@ class VideoCourseController {
     }
   }
 
-  /* ======================
-      GET BY BATCH ID (FIXED + REDIS)
-  ====================== */
   static async FindByBathId(req, res) {
     try {
       const { id } = req.params;
-      // const cacheKey = `videocourses:batch:${id}`;
-
-      // const cache = await redis.get(cacheKey);
-      // if (cache) {
-      //   return res.json({
-      //     success: true,
-      //     data: JSON.parse(cache),
-      //   });
-      // }
 
       const items = await VideoCourse.findAll({
         where: { batchId: id },
+        order: [["createdAt", "ASC"]],
       });
 
-      // await redis.set(cacheKey, JSON.stringify(items), "EX", 120);
+      const response = items.map((video) => {
+
+        const secureToken = encryptVideoPayload({
+          videoUrl: video.url,
+          videoId: video.id,
+          batchId: video.batchId,
+          videoSource: video.videoSource,
+          exp: Date.now() + 15 * 60 * 1000, // 15 min
+        });
+
+        return {
+          id: video.id,
+          title: video.title,
+          imageUrl: video.imageUrl,
+          videoSource: video.videoSource,
+
+          batchId: video.batchId,
+          subjectId: video.subjectId,
+
+          isDownloadable: video.isDownloadable,
+          isDemo: video.isDemo,
+
+          status: video.status,
+
+          isLive: video.isLive,
+          isLiveEnded: video.isLiveEnded,
+          LiveEndAt: video.LiveEndAt,
+          DateOfLive: video.DateOfLive,
+          TimeOfLIve: video.TimeOfLIve,
+
+          dateOfClass: video.dateOfClass,
+          TimeOfClass: video.TimeOfClass,
+
+          createdAt: video.createdAt,
+
+          // 🔒 ONLY THIS instead of url
+          secureToken,
+        };
+      });
 
       return res.json({
         success: true,
-        data: items,
+        data: response,
       });
     } catch (error) {
-      console.log(error)
-      return res.status(500).json({ success: false, message: "Server error" });
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
     }
   }
 
-  /* ======================
-      UPDATE
-  ====================== */
+
+  static async decryptAndPassVideo(req, res) {
+    try {
+      const { token } = req.body;
+      const userId = req.params.userId;
+
+      if (!token || !userId) {
+        return res.status(400).json({ message: "Token & userId required" });
+      }
+
+      let payload;
+
+      // 🔓 Try decrypt
+      try {
+        payload = decryptVideoToken(token);
+      } catch (e) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+
+      const { videoId, batchId, exp } = payload;
+      console.log("Payload",payload)
+      // 🔍 Check video exists
+      const video = await VideoCourse.findOne({
+        where: {
+          id: videoId,
+          batchId,
+          status: "active",
+        },
+      });
+           console.log("Video Payload",video)
+
+
+
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      // 🔐 CHECK USER ACCESS (MOST IMPORTANT)
+      const hasAccess = await Order.findOne({
+        where: {
+          userId,
+          type: "batch",
+          itemId: batchId,
+          status: "success", // or completed
+        },
+      });
+                  console.log(hasAccess)
+
+
+      // Demo / Free logic
+      if (!hasAccess && !video.isDemo) {
+        return res.status(403).json({
+          message: "You do not have access to this batch",
+        });
+      }
+
+      // 🔄 TOKEN REFRESH LOGIC
+      let refreshedToken = null;
+
+      if (exp < Date.now()) {
+        // ⏱ Token expired → issue NEW token
+        refreshedToken = encryptVideoPayload({
+          videoUrl: video.url,
+          videoId: video.id,
+          batchId: video.batchId,
+          videoSource: video.videoSource,
+          exp: Date.now() + 30 * 60 * 1000, // new 30 min
+        });
+      }
+
+      // 🎥 SUCCESS RESPONSE
+      return res.json({
+        success: true,
+        videoUrl: video.url,
+        videoSource: video.videoSource,
+        videoId: video.id,
+
+        // 👇 frontend can store updated token
+        refreshedToken,
+      });
+    } catch (err) {
+      console.error("Video decrypt error:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  }
+
+
   static async update(req, res) {
     try {
       const item = await VideoCourse.findByPk(req.params.id);
@@ -315,9 +433,6 @@ class VideoCourseController {
     }
   }
 
-  /* ======================
-      DELETE (🔥 MAIN FIX)
-  ====================== */
   static async delete(req, res) {
     try {
       const item = await VideoCourse.findByPk(req.params.id);

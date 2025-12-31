@@ -1,4 +1,4 @@
-import React from "react";
+import React,{useEffect} from "react";
 import {
   View,
   Text,
@@ -21,15 +21,15 @@ const RECORDED_CARD_WIDTH = width * 0.72;
 
 const CARD_WIDTH = width * 0.72;
 // === Horizontal Section Component ===
-const HorizontalSection = ({ 
-  title, 
-  data, 
-  renderItem, 
-  keyExtractor, 
-  cardWidth, 
-  isLoading, 
+const HorizontalSection = ({
+  title,
+  data,
+  renderItem,
+  keyExtractor,
+  cardWidth,
+  isLoading,
   error,
-  onSeeAll 
+  onSeeAll
 }) => {
   if (isLoading) {
     return (
@@ -80,7 +80,7 @@ const HorizontalSection = ({
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onSeeAll && data.length > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.seeAllButton}
             onPress={onSeeAll}
             activeOpacity={0.7}
@@ -112,7 +112,7 @@ const CourseCard = ({ item: batch, navigation }) => {
   const imageUrl = batch.imageUrl;
   const startDate = batch.startDate ? new Date(batch.startDate) : null;
   const endDate = batch.endDate ? new Date(batch.endDate) : null;
-  
+
   // Calculate discount percentage
   const discountPercent = batch.batchPrice && batch.batchDiscountPrice
     ? Math.round(((batch.batchPrice - batch.batchDiscountPrice) / batch.batchPrice) * 100)
@@ -121,19 +121,19 @@ const CourseCard = ({ item: batch, navigation }) => {
   // Format dates
   const formatDate = (date) => {
     if (!date) return null;
-    return date.toLocaleDateString('en-IN', { 
-      day: 'numeric', 
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
       month: 'short',
       year: 'numeric'
     });
   };
 
- const handlePress = () => {
-  navigation.navigate("CourseDetail", {
-    courseId: batch.id,
-    batchData: batch,
-  });
-};
+  const handlePress = () => {
+    navigation.navigate("CourseDetail", {
+      courseId: batch.id,
+      batchData: batch,
+    });
+  };
 
 
   return (
@@ -154,7 +154,7 @@ const CourseCard = ({ item: batch, navigation }) => {
             <Feather name="play" size={20} color="#ffffff" />
           </View>
         </View>
-        
+
         {/* Discount Badge */}
         {discountPercent > 0 && (
           <View style={styles.discountBadge}>
@@ -231,31 +231,36 @@ const CourseCard = ({ item: batch, navigation }) => {
 
 
 // === Main Component ===
-export default function Course() {
+export default function Course({ refreshing }) {
   const navigation = useNavigation();
 
   // Fetch courses from API
-  const { data: coursesResponse, error, isLoading } = useSWR(
+  const { data: coursesResponse, error, isLoading, mutate } = useSWR(
     "/batchs",
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
+      dedupingInterval: 60000,
     }
   );
 
 
   const courses = coursesResponse?.items || [];
+  useEffect(() => {
+    if (refreshing) {
+      mutate(); // SWR को force revalidate करो
+    }
+  }, [refreshing, mutate]);
 
+  const sortedCourses = [...courses].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
 
-const sortedCourses = [...courses].sort(
-  (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-);
-
-// Filter categories + take first 6
-const liveCourses = sortedCourses.filter(c => c.category === "online").slice(0, 6);
-const offlineCourses = sortedCourses.filter(c => c.category === "offline").slice(0, 6);
-const recordedCourses = sortedCourses.filter(c => c.category === "recorded").slice(0, 6);
+  // Filter categories + take first 6
+  const liveCourses = sortedCourses.filter(c => c.category === "online").slice(0, 6);
+  const offlineCourses = sortedCourses.filter(c => c.category === "offline").slice(0, 6);
+  const recordedCourses = sortedCourses.filter(c => c.category === "recorded").slice(0, 6);
 
 
   // Handle See All navigation
@@ -293,7 +298,7 @@ const recordedCourses = sortedCourses.filter(c => c.category === "recorded").sli
         error={error}
         onSeeAll={() => handleSeeAll("Recorded")}
       />
-       <HorizontalSection
+      <HorizontalSection
         title="Offline Courses"
         data={offlineCourses}
         renderItem={({ item }) => <CourseCard item={item} navigation={navigation} />}
@@ -305,7 +310,7 @@ const recordedCourses = sortedCourses.filter(c => c.category === "recorded").sli
       />
 
 
-  
+
     </ScrollView>
   );
 }
@@ -317,7 +322,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 24,
   },
-  
+
   // Stats Container
   statsContainer: {
     flexDirection: "row",
@@ -352,7 +357,7 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: "#e2e8f0",
   },
-  
+
   // Section Styles
   sectionContainer: {
     marginBottom: 24,
@@ -384,13 +389,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#3b82f6",
   },
-  
+
   // List Styles
   horizontalList: {
     paddingLeft: 16,
     paddingRight: 16,
   },
-  
+
   // Loading State
   loadingContainer: {
     height: 240,
@@ -406,7 +411,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#64748b",
   },
-  
+
   // Error State
   errorContainer: {
     height: 240,
@@ -426,7 +431,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748b",
   },
-  
+
   // Empty State
   emptyContainer: {
     height: 240,
@@ -485,7 +490,7 @@ const styles = StyleSheet.create({
 
   // Course Card Styles
   courseCard: {
-    marginBottom:12,
+    marginBottom: 12,
     marginRight: CARD_MARGIN,
     borderRadius: 16,
     backgroundColor: "#ffffff",
@@ -496,7 +501,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: .69,
   },
-  
+
   // Image Section
   imageContainer: {
     position: "relative",
@@ -565,7 +570,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     letterSpacing: 0.5,
   },
-  
+
   // Content Section
   cardContent: {
     padding: 12,
@@ -584,7 +589,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
   },
-  
+
   // Meta Information
   metaContainer: {
     flexDirection: "row",
@@ -602,7 +607,7 @@ const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "500",
   },
-  
+
   // Footer
   cardFooter: {
     flexDirection: "row",

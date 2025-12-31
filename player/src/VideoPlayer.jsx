@@ -15,15 +15,17 @@ import {
   Send,
   Heart,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Settings,
+  Gauge
 } from "lucide-react";
 
-export default function VideoPlayer({ 
-  video, 
-  isLive, 
+export default function VideoPlayer({
+  video,
+  playableUrl,  
+  videoSource,  
+  isLive,
   durationSet,
-  canJoin, 
-  user,
   viewerCount,
   onReady,
   token,
@@ -45,15 +47,50 @@ export default function VideoPlayer({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
+  // Speed and quality states
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [availableQualities, setAvailableQualities] = useState([]);
+  const [currentQuality, setCurrentQuality] = useState('auto');
+
+  const speedOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   const API_BASE = "https://www.dikapi.olyox.in/api";
 
-  // Video Resume Feature - Netflix jaisa
+  // 🔐 Extract video ID from DECRYPTED playableUrl (not from video.url)
   const getVideoId = () => {
-    if (!video?.url) return null;
-    const match = video.url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-    return match ? match[1] : null;
+    if (!playableUrl) return null;
+    
+    // For YouTube URLs
+    if (videoSource === 'youtube') {
+      try {
+        const url = new URL(playableUrl);
+        
+        // youtu.be/VIDEO_ID
+        if (url.hostname.includes('youtu.be')) {
+          return url.pathname.slice(1);
+        }
+        
+        // youtube.com/watch?v=VIDEO_ID
+        if (url.searchParams.get('v')) {
+          return url.searchParams.get('v');
+        }
+        
+        // youtube.com/embed/VIDEO_ID
+        const match = url.pathname.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+        return match ? match[1] : null;
+      } catch {
+        // Fallback: try regex on string
+        const match = playableUrl.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+        return match ? match[1] : null;
+      }
+    }
+    
+    // For S3 or other sources, use video.id
+    return video?.id || null;
   };
 
+  // Video Resume Feature
   const saveWatchProgress = (videoId, time) => {
     if (!videoId || time < 5) return;
     const key = `video_progress_${videoId}`;
@@ -70,7 +107,6 @@ export default function VideoPlayer({
     if (!saved) return 0;
     try {
       const data = JSON.parse(saved);
-      // Progress expire after 7 days
       if (Date.now() - data.timestamp > 7 * 24 * 60 * 60 * 1000) {
         localStorage.removeItem(key);
         return 0;
@@ -81,9 +117,18 @@ export default function VideoPlayer({
     }
   };
 
-  // Load YouTube IFrame API
+  // 🔐 Initialize player ONLY when playableUrl is available
   useEffect(() => {
-    if (!video) return;
+    if (!playableUrl || !videoSource) {
+      console.log("Waiting for decrypted URL...");
+      return;
+    }
+
+    // Only YouTube videos use iframe API
+    if (videoSource !== 'youtube') {
+      console.log("Non-YouTube source, different player needed");
+      return;
+    }
 
     if (window.YT && window.YT.Player) {
       initPlayer();
@@ -106,10 +151,32 @@ export default function VideoPlayer({
         playerRef.current = null;
       }
     };
-  }, [video?.url]);
+  }, [playableUrl, videoSource]);
+
+  // Get available qualities after player is ready
+  useEffect(() => {
+    if (!playerReady || videoSource !== 'youtube') return;
+
+    const timeout = setTimeout(() => {
+      if (playerRef.current) {
+        const qualities = playerRef.current.getAvailableQualityLevels();
+        console.log("Available qualities:", qualities);
+        setAvailableQualities(qualities || []);
+        
+        const currentQ = playerRef.current.getPlaybackQuality();
+        console.log("Current quality:", currentQ);
+        setCurrentQuality(currentQ || 'auto');
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [playerReady, videoSource]);
 
   const initPlayer = () => {
-    if (!video) return;
+    if (!playableUrl) {
+      console.error("No playable URL available");
+      return;
+    }
 
     if (playerRef.current && playerRef.current.destroy) {
       try {
@@ -126,24 +193,11 @@ export default function VideoPlayer({
     setCurrentTime(0);
     setDuration(0);
 
-    let videoId;
-    if (video?.url) {
-      const url = video.url;
-      const match = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-      if (match && match[1]) {
-        videoId = match[1];
-      }
-    }
-
-    if (!videoId && video.url) {
-      const match = video.url.match(/embed\/([^?&]+)/);
-      videoId = match ? match[1] : null;
-    } else if (!videoId && typeof video === 'object') {
-      videoId = video;
-    }
+    // 🔐 Extract video ID from DECRYPTED playableUrl
+    const videoId = getVideoId();
 
     if (!videoId) {
-      console.error("Could not extract YouTube video ID");
+      console.error("Could not extract YouTube video ID from decrypted URL");
       return;
     }
 
@@ -152,6 +206,8 @@ export default function VideoPlayer({
       console.error("Player container not found");
       return;
     }
+
+    console.log("Initializing YouTube player with video ID:", videoId);
 
     playerRef.current = new window.YT.Player("yt-player", {
       videoId: videoId,
@@ -171,13 +227,13 @@ export default function VideoPlayer({
           setPlayerReady(true);
           const dur = event.target.getDuration();
           setDuration(dur);
-          
+
           // Resume from saved progress
           const savedTime = getWatchProgress(videoId);
           if (savedTime > 0 && savedTime < dur - 10) {
             event.target.seekTo(savedTime, true);
           }
-          
+
           event.target.playVideo();
           if (onReady) onReady(event);
         },
@@ -190,7 +246,7 @@ export default function VideoPlayer({
 
   // Update progress & save watch time
   useEffect(() => {
-    if (!playerReady) return;
+    if (!playerReady || videoSource !== 'youtube') return;
 
     const interval = setInterval(() => {
       if (playerRef.current && playerRef.current.getCurrentTime) {
@@ -202,12 +258,17 @@ export default function VideoPlayer({
             setProgress((time / dur) * 100);
             durationSet(dur);
             setDuration(dur);
-            
-            // Save progress every 5 seconds
+
             const videoId = getVideoId();
             if (videoId && time > 5) {
               saveWatchProgress(videoId, time);
             }
+          }
+
+          // Update current quality
+          const quality = playerRef.current.getPlaybackQuality();
+          if (quality && quality !== currentQuality) {
+            setCurrentQuality(quality);
           }
         } catch (error) {
           console.error("Error getting player time:", error);
@@ -216,7 +277,7 @@ export default function VideoPlayer({
     }, 500);
 
     return () => clearInterval(interval);
-  }, [playerReady]);
+  }, [playerReady, currentQuality, videoSource]);
 
   const togglePlayPause = () => {
     if (!playerRef.current) return;
@@ -251,6 +312,49 @@ export default function VideoPlayer({
     setMuted(!muted);
   };
 
+  const changeSpeed = (speed) => {
+    if (!playerRef.current) return;
+    playerRef.current.setPlaybackRate(speed);
+    setPlaybackSpeed(speed);
+    setShowSpeedMenu(false);
+  };
+
+  const changeQuality = (quality) => {
+    if (!playerRef.current) return;
+
+    console.log("Requested quality:", quality);
+
+    playerRef.current.pauseVideo();
+
+    setTimeout(() => {
+      playerRef.current.setPlaybackQuality(quality);
+      console.log("setPlaybackQuality called:", quality);
+
+      playerRef.current.playVideo();
+
+      setTimeout(() => {
+        const applied = playerRef.current.getPlaybackQuality();
+        console.log("Applied playback quality:", applied);
+        setCurrentQuality(applied);
+      }, 300);
+    }, 200);
+  };
+
+  const getQualityLabel = (quality) => {
+    const labels = {
+      'highres': '4K',
+      'hd1080': '1080p',
+      'hd720': '720p',
+      'large': '480p',
+      'medium': '360p',
+      'small': '240p',
+      'tiny': '144p',
+      'auto': 'Auto',
+      'default': 'Auto'
+    };
+    return labels[quality] || labels['auto'];
+  };
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -279,9 +383,9 @@ export default function VideoPlayer({
 
   // Load Comments from API
   const loadComments = async () => {
-    const videoId = getVideoId();
+    const videoId = video?.id; // Use video.id for comments
     if (!videoId || !token) return;
-    
+
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/comments/video/${videoId}`, {
@@ -305,13 +409,12 @@ export default function VideoPlayer({
     if (showComments) {
       loadComments();
     }
-  }, [showComments]);
+  }, [showComments, video?.id]);
 
-  // Comments Functions
   const handleSendComment = async () => {
     if (!newComment.trim() || sending || !token) return;
-    
-    const videoId = getVideoId();
+
+    const videoId = video?.id;
     if (!videoId) return;
 
     setSending(true);
@@ -330,13 +433,13 @@ export default function VideoPlayer({
       });
 
       const data = await res.json();
-      
+
       if (data.success) {
         const newComm = data.data;
 
         if (replyingTo) {
-          setComments(prev => prev.map(c => 
-            c.id === replyingTo.id 
+          setComments(prev => prev.map(c =>
+            c.id === replyingTo.id
               ? { ...c, replies: [...(c.replies || []), newComm] }
               : c
           ));
@@ -360,7 +463,7 @@ export default function VideoPlayer({
 
   const handleToggleLike = async (commentId, isReply = false, parentId = null) => {
     if (!token) return;
-    
+
     try {
       const res = await fetch(`${API_BASE}/comments/${commentId}/toggle-like`, {
         method: 'POST',
@@ -376,16 +479,16 @@ export default function VideoPlayer({
         const { likes, action } = data.data;
 
         if (isReply && parentId) {
-          setComments(prev => prev.map(c => 
+          setComments(prev => prev.map(c =>
             c.id === parentId
               ? {
-                  ...c,
-                  replies: c.replies.map(r =>
-                    r.id === commentId
-                      ? { ...r, likes, isLikedByUser: action === "liked" }
-                      : r
-                  )
-                }
+                ...c,
+                replies: c.replies.map(r =>
+                  r.id === commentId
+                    ? { ...r, likes, isLikedByUser: action === "liked" }
+                    : r
+                )
+              }
               : c
           ));
         } else {
@@ -440,7 +543,7 @@ export default function VideoPlayer({
           </div>
         </div>
       </div>
-      
+
       {!isReply && comment.replies?.length > 0 && (
         <div className="mt-2">
           <button
@@ -462,6 +565,18 @@ export default function VideoPlayer({
     </div>
   );
 
+  // 🔐 Show loading if no playable URL yet
+  if (!playableUrl) {
+    return (
+      <div className="relative w-full h-full bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Preparing video...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative w-full h-full bg-black"
@@ -476,7 +591,7 @@ export default function VideoPlayer({
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none' }}
         />
-        
+
         {/* Blocking Overlay */}
         <div
           className="absolute inset-0 w-full h-full"
@@ -487,9 +602,8 @@ export default function VideoPlayer({
 
       {/* Custom Controls */}
       <div
-        className={`absolute inset-0 flex flex-col justify-end p-4 lg:p-8 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0"
-        }`}
+        className={`absolute inset-0 flex flex-col justify-end p-4 lg:p-8 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"
+          }`}
         style={{ zIndex: 100 }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
@@ -535,8 +649,66 @@ export default function VideoPlayer({
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowComments(!showComments)} 
+              {/* Speed Control */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowSpeedMenu(!showSpeedMenu);
+                    setShowQualityMenu(false);
+                  }}
+                  className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors flex items-center gap-1"
+                >
+                  <Gauge className="w-4 h-4 lg:w-5 lg:h-5" />
+                  <span className="text-xs">{playbackSpeed}x</span>
+                </button>
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full right-0 mb-2 bg-black/95 backdrop-blur-lg rounded-lg border border-gray-700 overflow-hidden">
+                    {speedOptions.map(speed => (
+                      <button
+                        key={speed}
+                        onClick={() => changeSpeed(speed)}
+                        className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${playbackSpeed === speed ? 'text-blue-400 bg-white/5' : 'text-white'
+                          }`}
+                      >
+                        {speed === 1 ? 'Normal' : `${speed}x`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quality Control */}
+              {videoSource === 'youtube' && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowQualityMenu(!showQualityMenu);
+                      setShowSpeedMenu(false);
+                    }}
+                    className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors flex items-center gap-1"
+                  >
+                    <Settings className="w-4 h-4 lg:w-5 lg:h-5" />
+                    <span className="text-xs">{getQualityLabel(currentQuality)}</span>
+                  </button>
+                  {showQualityMenu && availableQualities.length > 0 && (
+                    <div className="absolute bottom-full right-0 mb-2 bg-black/95 backdrop-blur-lg rounded-lg border border-gray-700 overflow-hidden">
+                      {availableQualities.map(quality => (
+                        <button
+                          key={quality}
+                          onClick={() => changeQuality(quality)}
+                          className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${currentQuality === quality ? 'text-blue-400 bg-white/5' : 'text-white'
+                            }`}
+                        >
+                          {getQualityLabel(quality)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowComments(!showComments)}
                 className="p-2 hover:bg-white/20 rounded-lg text-white transition-colors relative"
               >
                 <MessageCircle className="w-4 h-4 lg:w-5 lg:h-5" />
@@ -572,7 +744,7 @@ export default function VideoPlayer({
       {/* Center Play Button */}
       {!playing && playerReady && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 100 }}>
-          <button 
+          <button
             onClick={togglePlayPause}
             className="w-20 h-20 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center transition-colors"
           >
@@ -585,7 +757,6 @@ export default function VideoPlayer({
       {showComments && (
         <div className="absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-black/95 backdrop-blur-lg border-l border-gray-800" style={{ zIndex: 200 }}>
           <div className="flex flex-col h-full">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-800">
               <h3 className="text-white font-semibold flex items-center gap-2">
                 <MessageCircle className="w-5 h-5" />
@@ -596,7 +767,6 @@ export default function VideoPlayer({
               </button>
             </div>
 
-            {/* Comments List */}
             <div className="flex-1 overflow-y-auto p-4">
               {loading ? (
                 <div className="text-center text-gray-400 py-8">
@@ -617,7 +787,6 @@ export default function VideoPlayer({
               )}
             </div>
 
-            {/* Comment Input */}
             <div className="p-4 border-t border-gray-800">
               {replyingTo && (
                 <div className="mb-2 p-2 bg-gray-800 rounded-lg flex items-center justify-between">

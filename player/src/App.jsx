@@ -7,26 +7,35 @@ import useLiveSession from "./context/useLiveSession";
 import { SocketProvider } from "./context/socket";
 import VideoPlayer from "./VideoPlayer";
 import useAuth from "./hooks/use-auth";
-
+import axios from "axios";
+import devtools from 'devtools-detect';
+import { addListener, launch } from 'devtools-detector';
 function LMSContent() {
   const UserParams = new URLSearchParams(window.location.search);
   const userId = UserParams.get("userId");
   const token = UserParams.get("token");
-  
+  const courseId = UserParams.get("courseId");
+
+
   const { user, loading: userLoading, error: authError, isAuthenticated, refetch } = useAuth(token);
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
   const [duration, setDuration] = useState(0);
-  
+
   // Data states
   const [batch, setBatch] = useState(null);
   const [videos, setVideos] = useState([]);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  
+
+  // Video decryption states
+  const [playableUrl, setPlayableUrl] = useState(null);
+  const [videoSource, setVideoSource] = useState(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+
   // Error & Network states
   const [error, setError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -36,13 +45,12 @@ function LMSContent() {
   const validateUrlParams = () => {
     const requiredParams = ['userId', 'token'];
     const missingParams = requiredParams.filter(param => !UserParams.get(param));
-    
+
     if (missingParams.length > 0) {
       setNotFound(true);
       return false;
     }
 
-    // Check if token format is valid (basic check)
     const tokenValue = UserParams.get('token');
     if (tokenValue && tokenValue.length < 20) {
       setNotFound(true);
@@ -64,12 +72,11 @@ function LMSContent() {
     const handleOnline = () => {
       setIsOnline(true);
       setError(null);
-      // Auto-retry on reconnection
       if (!isAuthenticated && token) {
         refetch();
       }
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
       setError({
@@ -121,34 +128,103 @@ function LMSContent() {
     return true;
   };
 
+  // Update video token in state (for refresh)
+  const updateVideoToken = (videoId, newToken) => {
+    setVideos(prevVideos =>
+      prevVideos.map(v =>
+        v.id === videoId ? { ...v, secureToken: newToken } : v
+      )
+    );
+
+    if (currentVideo?.id === videoId) {
+      setCurrentVideo(prev => ({ ...prev, secureToken: newToken }));
+    }
+  };
+
+  useEffect(() => {
+    if (!currentVideo || !currentVideo.secureToken) return;
+
+    const decryptVideo = async () => {
+      try {
+        setVideoLoading(true);
+        setPlayableUrl(null);
+        setVideoSource(null);
+
+        const res = await axios.post(
+          `https://www.dikapi.olyox.in/api/videocourses/decrypt/batch/${userId}`,
+          { token: currentVideo.secureToken },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const data = res.data;
+
+        // 🎥 REAL URL ONLY HERE
+        setPlayableUrl(data.videoUrl);
+        setVideoSource(data.videoSource);
+
+        // 🔄 TOKEN REFRESH SUPPORT
+        if (data.refreshedToken) {
+          updateVideoToken(currentVideo.id, data.refreshedToken);
+        }
+      } catch (err) {
+        console.error("Video decryption error:", err);
+
+        // Axios errors have response object
+        const status = err.response?.status;
+
+        if (status === 401 || status === 403) {
+          setError({
+            type: "auth",
+            message: "You don't have access to this video. Please check your subscription.",
+            icon: Shield,
+          });
+        } else {
+          setError({
+            type: "auth",
+            message: "Video access expired or invalid. Please refresh the page.",
+            icon: Shield,
+          });
+        }
+      } finally {
+        setVideoLoading(false);
+      }
+    };
+
+    decryptVideo();
+  }, [currentVideo?.id, currentVideo?.secureToken, userId, token]);
   // Fetch batch and videos data with error handling
   useEffect(() => {
     if (!isOnline) return;
-    
+
     if (!validateAccess()) {
       setLoading(false);
       return;
     }
 
     refetch();
-    
+
     async function fetchData() {
       try {
         setLoading(true);
         setError(null);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const [batchRes, videosRes] = await Promise.all([
-          fetch("https://www.dikapi.olyox.in/api/batchs/8", {
+          fetch(`https://www.dikapi.olyox.in/api/batchs/${courseId}`, {
             signal: controller.signal,
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           }),
-          fetch("https://www.dikapi.olyox.in/api/videocourses/batch/8", {
+          fetch(`https://www.dikapi.olyox.in/api/videocourses/batch/${courseId}`, {
             signal: controller.signal,
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -159,7 +235,6 @@ function LMSContent() {
 
         clearTimeout(timeoutId);
 
-        // Handle HTTP errors
         if (!batchRes.ok || !videosRes.ok) {
           if (batchRes.status === 401 || videosRes.status === 401) {
             throw new Error('UNAUTHORIZED');
@@ -186,24 +261,35 @@ function LMSContent() {
 
         if (videosData.data.length > 0) {
           const videoList = videosData.data;
+
+          // 🔒 STORE ONLY: id, title, secureToken (NEVER raw URLs)
           setVideos(videoList);
 
           // Check URL params for specific video
           const params = new URLSearchParams(window.location.search);
           const videoParam = params.get("video");
-          
-          if (videoParam) {
-            const found = videoList.find((v) => v.url.includes(videoParam));
-            if (!found) {
-              // Video ID in URL but not found in list
-              setNotFound(true);
-              setLoading(false);
-              return;
+
+          if (videoParam && videoList.length) {
+            let found = null;
+
+            // Try matching by secureToken first (from URL)
+            found = videoList.find(v => v.secureToken === videoParam);
+
+            // Fallback: try matching by videoId (if it's a number)
+            if (!found && !isNaN(videoParam)) {
+              found = videoList.find(v => v.id === parseInt(videoParam));
             }
-            setCurrentVideo(found);
-          } else {
+
+            if (!found) {
+              // If no match, use first video
+              setCurrentVideo(videoList[0]);
+            } else {
+              setCurrentVideo(found);
+            }
+          } else if (videoList.length) {
             setCurrentVideo(videoList[0]);
           }
+
         } else {
           setError({
             type: 'empty',
@@ -215,7 +301,7 @@ function LMSContent() {
         setRetryCount(0);
       } catch (err) {
         console.error("Failed to load course data:", err);
-        
+
         if (err.name === 'AbortError') {
           setError({
             type: 'timeout',
@@ -259,13 +345,11 @@ function LMSContent() {
     setCurrentVideo(video);
     setSidebarOpen(false);
 
-    // Update URL
+    // Update URL with secureToken (matches backend URL format)
     const url = new URL(window.location.href);
-    const embedId = video.url.split("embed/")[1]?.split("?")[0];
-    if (embedId) {
-      url.searchParams.set("video", embedId);
-      window.history.replaceState({}, "", url);
-    }
+    url.searchParams.set("video", video.secureToken);
+    url.searchParams.set("batchId",courseId); // Keep batchId in sync
+    window.history.replaceState({}, "", url);
   };
 
   const handleRetry = () => {
@@ -295,14 +379,14 @@ function LMSContent() {
             </h1>
             <div className="w-32 h-1 bg-blue-500 mx-auto mb-8"></div>
           </div>
-          
+
           <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
             Page Not Found
           </h2>
           <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
             The page you're looking for doesn't exist or you don't have access to it.
           </p>
-          
+
           <div className="space-y-3">
             <button
               onClick={() => window.location.href = '/'}
@@ -317,7 +401,7 @@ function LMSContent() {
               Go Back
             </button>
           </div>
-          
+
           <div className="mt-12 text-gray-500 text-sm">
             <p>Possible reasons:</p>
             <ul className="mt-2 space-y-1">
@@ -342,12 +426,12 @@ function LMSContent() {
             <Icon className="w-10 h-10 text-red-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {error.type === 'network' ? 'Connection Error' : 
-             error.type === 'auth' ? 'Access Denied' : 
-             'Something went wrong'}
+            {error.type === 'network' ? 'Connection Error' :
+              error.type === 'auth' ? 'Access Denied' :
+                'Something went wrong'}
           </h2>
           <p className="text-gray-600 mb-6">{error.message}</p>
-          
+
           <div className="space-y-3">
             {(error.type === 'network' || error.type === 'timeout' || error.type === 'server') && (
               <button
@@ -358,7 +442,7 @@ function LMSContent() {
                 Retry
               </button>
             )}
-            
+
             {error.type === 'auth' && (
               <button
                 onClick={() => window.location.href = '/login'}
@@ -367,7 +451,7 @@ function LMSContent() {
                 Go to Login
               </button>
             )}
-            
+
             <button
               onClick={() => window.location.href = '/'}
               className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
@@ -509,10 +593,22 @@ function LMSContent() {
                 />
               )}
 
-              {/* Video Player */}
-              {(canJoin || !currentVideo.isLive) && (
+              {/* Video Loading State */}
+              {videoLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+                  <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-white text-lg">Loading video...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Video Player - Only render when URL is decrypted */}
+              {!videoLoading && playableUrl && (canJoin || !currentVideo.isLive) && (
                 <VideoPlayer
                   video={currentVideo}
+                  playableUrl={playableUrl}
+                  videoSource={videoSource}
                   durationSet={setDuration}
                   isLive={isLive}
                   user={user}
@@ -600,6 +696,69 @@ function LMSContent() {
 export default function App() {
   const UserParams = new URLSearchParams(window.location.search);
   const userId = UserParams.get("userId");
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+
+  useEffect(() => {
+    launch(); // whatever this does
+
+    const handleDevToolsOpen = (isOpen) => {
+      setDevToolsOpen(isOpen);
+      if (isOpen) {
+        alert('Developer tools detected. Access restricted.');
+      }
+    };
+
+    addListener(handleDevToolsOpen);
+  }, []);
+
+  useEffect(() => {
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
+  useEffect(() => {
+    const handleDevToolsChange = (event) => {
+      if (event.detail.isOpen) {
+        alert('Developer tools detected. Video playback restricted.');
+        window.location.blur();
+        setDevToolsOpen(true);
+      }
+    };
+
+    window.addEventListener('devtoolschange', handleDevToolsChange);
+    return () => window.removeEventListener('devtoolschange', handleDevToolsChange);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F12') e.preventDefault();
+      if (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) e.preventDefault();
+      if (e.ctrlKey && e.key.toUpperCase() === 'U') e.preventDefault();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Only show LMSContent if dev tools are NOT open
+  if (devToolsOpen) {
+    return (
+      <div className="flex-1 relative bg-black overflow-hidden blur-xl transition-all duration-300">
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="text-white text-center">
+            <Shield className="w-16 h-16 mx-auto mb-4" />
+            <p className="text-2xl font-bold">Developer Tools Detected</p>
+            <p className="mt-2">Video playback disabled for security.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SocketProvider userId={userId}>

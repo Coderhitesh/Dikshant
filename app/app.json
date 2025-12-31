@@ -18,12 +18,7 @@
       "icon": "./assets/icon.png",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "location",
-          "fetch",
-          "location",
-          "fetch"
-        ],
+        "UIBackgroundModes": ["location", "fetch", "location", "fetch"],
         "UIUserNotificationAlertStyle": "alert"
       },
       "entitlements": {
@@ -72,7 +67,7 @@
         "USE_FULL_SCREEN_INTENT",
         "SYSTEM_ALERT_WINDOW"
       ],
-       "intentFilters": [
+      "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
@@ -86,62 +81,54 @@
         }
       ],
       "edgeToEdgeEnabled": true,
-      "notification": {
-        "icon": "./assets/images/logo.png",
+    "notification": {
+        "icon": "./assets/small.png",
         "color": "#FB2B37",
         "priority": "max",
         "channels": [
           {
-            "id": "dikshant-general",
+            "id": "default",
             "name": "General Notifications",
             "description": "General updates from Dikshant IAS LMS",
             "importance": "max",
-            "sound": "default"
+            "sound": "n_bell"
           },
           {
-            "id": "dikshant-important",
-            "name": "Important Alerts",
-            "description": "Exam updates and critical alerts",
+            "id": "attendance",
+            "name": "Attendance Alerts",
+            "description": "Attendance related notifications",
             "importance": "max",
-            "sound": "default",
-            "vibrationPattern": [
-              300,
-              200,
-              300
-            ]
+            "sound": "n_bell",
+            "vibrationPattern": [300, 200, 300]
           },
           {
-            "id": "dikshant-live-class",
-            "name": "Live Class Alerts",
-            "description": "Live class start reminders",
+            "id": "assignments",
+            "name": "Assignments & Tests",
+            "description": "Assignments and test notifications",
+            "importance": "max",
+            "sound": "n_bell"
+          },
+          {
+            "id": "announcements",
+            "name": "Announcements",
+            "description": "Important announcements from Dikshant IAS",
+            "importance": "default",
+            "sound": "n_bell"
+          },
+          {
+            "id": "courses",
+            "name": "Course Updates",
+            "description": "Course and content updates",
+            "importance": "max",
+            "sound": "v_bell"
+          },
+          {
+            "id": "tests",
+            "name": "Test & Live Class Alerts",
+            "description": "Test reminders and live class alerts",
             "importance": "high",
-            "sound": "default"
-          },
-          {
-            "id": "dikshant-general",
-            "name": "General Notifications",
-            "description": "General updates from Dikshant IAS LMS",
-            "importance": "max",
-            "sound": "default"
-          },
-          {
-            "id": "dikshant-important",
-            "name": "Important Alerts",
-            "description": "Exam updates and critical alerts",
-            "importance": "max",
-            "sound": "default",
-            "vibrationPattern": [
-              300,
-              200,
-              300
-            ]
-          },
-          {
-            "id": "dikshant-live-class",
-            "name": "Live Class Alerts",
-            "description": "Live class start reminders",
-            "importance": "high",
-            "sound": "default"
+            "sound": "v_bell",
+            "vibrationPattern": [400, 200, 400]
           }
         ]
       }

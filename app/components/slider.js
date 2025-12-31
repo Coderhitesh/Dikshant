@@ -17,7 +17,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SLIDE_HEIGHT = SCREEN_WIDTH * 0.35;
 const AUTO_PLAY_INTERVAL = 3000;
 
-export default function Slider() {
+export default function Slider({refreshing}) {
   const [banners, setBanners] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ export default function Slider() {
 
   useEffect(() => {
     fetchBanners();
-  }, []);
+  }, [refreshing]);
 
   // Auto-play effect
   useEffect(() => {

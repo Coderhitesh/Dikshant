@@ -11,7 +11,7 @@ import { useAuthStore } from "../stores/auth.store";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-export default function Greet() {
+export default function Greet({refreshing}) {
   const { user, token, getProfile, loggedIn } = useAuthStore();
 
   // Fetch profile only if logged in and user is not loaded
@@ -19,7 +19,7 @@ export default function Greet() {
     if (loggedIn && token && !user) {
       getProfile(); // This is a sync getter now? Wait — see note below!
     }
-  }, [loggedIn, token, user, getProfile]);
+  }, [loggedIn, token, user, getProfile,refreshing]);
 
   // Tip of the day
   const tips = [
@@ -51,7 +51,7 @@ export default function Greet() {
   };
 
   // Show loading if user is being fetched
-  if (loggedIn && token && !user) {
+  if (loggedIn && token && !user && refreshing) {
     return (
       <LinearGradient colors={["#DC3545", "#d62828"]} style={styles.container}>
         <View style={styles.loadingContainer}>

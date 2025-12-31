@@ -7,7 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
-const Announcement = () => {
+const Announcement = ({refreshing}) => {
   const navigation = useNavigation()
   const [announcements, setAnnouncements] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -30,7 +30,7 @@ const Announcement = () => {
 
   useEffect(() => {
     fetchAnnouncements();
-  }, []);
+  }, [refreshing]);
 
   // 🔹 Animation interval
   useEffect(() => {
@@ -73,7 +73,7 @@ const Announcement = () => {
   const current = announcements[currentIndex];
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity onPress={()=> navigation.navigate("annouce-details",{id:current.id})} activeOpacity={0.9} style={styles.container}>
       <View style={styles.card}>
         <Animated.View
           style={[
@@ -93,7 +93,7 @@ const Announcement = () => {
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

@@ -9,7 +9,7 @@ import Signup from "./screens/auth/Signup";
 import CourseDetail from "./screens/courses/CourseDetail";
 import Course from "./screens/courses/Courses";
 import CoursePage from "./screens/courses/CoursePage";
-import { Text, TextInput, Alert, AppState } from "react-native";
+import { Text, TextInput, Alert, AppState ,StyleSheet} from "react-native";
 import EBooks from "./pages/Books/EBooks";
 import TestScreen from "./screens/Tests/Tests";
 import QuesAndScreen from "./screens/Tests/QuesAndScreen";
@@ -29,6 +29,7 @@ import { Platform } from "react-native";
 import Scholarship from "./pages/Scholarship/AllScholarship";
 import ApplyScholarship from "./pages/Scholarship/ApplyScholarship";
 import EnrollCourse from "./screens/courses/EnrollCourse";
+import { isDeveloperOptionsEnabled } from "./utils/deviceChecks";
 import MyEnrollCourse from "./pages/Profile/MyEnrollCourse";
 import {
   setupNotifications,
@@ -48,6 +49,8 @@ import {
 } from "./pages/Profile/ShareApp";
 import ForgotPassword from "./screens/auth/ForgotPassword";
 import { SocketProvider } from "./context/SocketContext";
+import { colors } from "./constant/color";
+import AnnouncementDetails from "./components/AnnouncementDetails";
 
 const Stack = createNativeStackNavigator();
 
@@ -73,7 +76,8 @@ export default function App() {
   const fcmUnsubscribe = useRef();
   const appState = useRef(AppState.currentState);
   const navigationRef = useRef();
-  
+  const [isDevOptionsEnabled, setIsDevOptionsEnabled] = useState(false);
+  const [showDevWarning, setShowDevWarning] = useState(false);
   const { token ,user } = useAuthStore();
 
 
@@ -297,9 +301,69 @@ export default function App() {
     }
   };
 
+  const checkDeveloperOptions = async () => {
+    const enabled = await isDeveloperOptionsEnabled();
+    console.log("Dev Mode",enabled)
+    setIsDevOptionsEnabled(enabled);
+
+    if (enabled && !showDevWarning) {
+      setShowDevWarning(true); // Modal show करो
+    }
+  };
+
+  useEffect(() => {
+    // Initial check
+    checkDeveloperOptions();
+
+    // App state change पर भी check करो (user enable/disable कर सकता है)
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        checkDeveloperOptions();
+      }
+    });
+
+    return () => subscription?.remove();
+  }, []);
   if (!fontsLoaded || !permissionsGranted) {
     return null;
   }
+  if (isDevOptionsEnabled) {
+  return (
+    <Modal
+      visible={showDevWarning}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowDevWarning(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.warningCard}>
+          <Text style={styles.warningIcon}>⚠️</Text>
+          <Text style={styles.warningTitle}>Developer Options Enabled</Text>
+          <Text style={styles.warningMessage}>
+            आपने अपने फोन में Developer Options ऑन कर रखा है।{"\n\n"}
+            यह ऐप की security और performance को प्रभावित कर सकता है।{"\n\n"}
+            कृपया इसे बंद कर दें:
+          </Text>
+
+          <View style={styles.steps}>
+            <Text style={styles.stepText}>1. Settings → About Phone</Text>
+            <Text style={styles.stepText}>2. Build Number पर 7 बार टैप करें (बंद करने के लिए)</Text>
+            <Text style={styles.stepText}>3. Developer Options को ऑफ करें</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowDevWarning(false)}
+          >
+            <Text style={styles.closeButtonText}>समझ गया, बंद करूंगा</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+  
 
   // Apply Geist font globally
   Text.defaultProps = Text.defaultProps || {};
@@ -334,7 +398,7 @@ export default function App() {
         <Stack.Screen name="Courses" component={CoursePage} />
         <Stack.Screen name="enroll-course" component={EnrollCourse} />
         <Stack.Screen name="my-course" component={MyEnrollCourse} />
-
+        <Stack.Screen name="annouce-details" component={AnnouncementDetails}/>
         <Stack.Screen name="EBooks" component={EBooks} />
         <Stack.Screen name="Quiz" component={TestScreen} />
         <Stack.Screen name="startQuz" component={QuesAndScreen} />
@@ -351,7 +415,68 @@ export default function App() {
         <Stack.Screen name="ApplyScholarship" component={ApplyScholarship} />
       </Stack.Navigator>
     </NavigationContainer>
+    
     </SocketProvider>
 
   );
 }
+
+
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  warningCard: {
+    width: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    elevation: 10,
+  },
+  warningIcon: {
+    fontSize: 50,
+    marginBottom: 16,
+  },
+  warningTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#D32F2F",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  warningMessage: {
+    fontSize: 15,
+    color: "#333",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  steps: {
+    alignSelf: "stretch",
+    backgroundColor: "#FFF3E0",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  stepText: {
+    fontSize: 14,
+    color: "#E65100",
+    marginVertical: 4,
+  },
+  closeButton: {
+    backgroundColor: colors.primary || "#1976D2",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+})

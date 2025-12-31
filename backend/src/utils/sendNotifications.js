@@ -58,7 +58,7 @@ const initializeFirebase = () => {
     );
   }
 
-  const privateKey = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCqJ8LT+6NKAxJd\nD69nweMoL4Et4gbOLLEm1iJgtcVBy5zwMXxy+hR7wNgsF1bqi/LXQTeKqIDcfqFB\nXw1XqS0i0XoIyH4REXmHzAFgYcqI10WOYWlnJYOtmdhRgGw41Be3FZydnUvVdCZ0\nDLKqaILsWZH9886pn97zWGSJy3N+3T5OHdCGP8xl8KSRTLjq7YWGcfApkylOgge5\n1AilMtL3wFBs5VibNZwYKiefBMSWvRAUDqqVc0QlEYoEqjCyQvGCkDve2S2rXHPz\nEXWDXjoGWKNrnrgCd8mD48BVIAkPI23mZyYzRSSKjHzH2dTGKB6TVuDETSOOhf41\nF0uu68kRAgMBAAECggEAJmv1B+X98LPx3RayHmU/FG9ppYEw1TRtSh43RAw3fwxp\noykhd1r17h3VEluw0iSI0MdWsdYrxt5HLlo2ypEWcpLHkh0nrlX6Ucokk21xjOXD\nPIvNf6+OZNBk8r5jcY+ezUYxh7uhiJECL9lALM+NpK3zE9uOUmoZr2xJw32v1jjj\nyE4KYDYqHaxHQVS4xgH1dBAj2xiNkWRIt3HyZNIVBICXHRZHr4bmALYvrF0BlAF6\nbdIiE68XiUt7cuivEiwJRFO7wI8Oaj1c8+2Q5ksMTIuWx2ETilv/ZfNeOfwl1htP\n4GkGc14wYVFSiRadkvoNX2neSLDu0KSR3Mf3rzwQCwKBgQDZO/jGW0eJp7HtB2jB\nZkU0li49URaZWSrxL+DD0zDw6E5G1rfWDci8oYLMf8wLTjLKNXB0P+x5sqWeGI0x\nZ/pN6AyEhJCOl9+UrkMz5OCBAAH6Y3PK3UzqmU26qOQxxrszBSN/OmdVs44BgpxT\nvc+y1jMsydlKEM/3bCnplpIJrwKBgQDIhQ6DYvdSJpg9o5R51izctuhnftycy5L+\nJuJp56YdSDyDHjgnHyRzLZ0myGc3ShiX5YK3mIOhQodhLVq2QY31Gg1APl/+LCsw\n/AUE+s7y5+B3shBs86GHdj7MGqWpjpqoMoupdNZxY+ZlJ7m3kPZjxfDFbppvXC3H\ncm0jI+/JPwKBgBgEp3bW9MvlfKimXxCzDAfKawZghs0hrLvJ/WHpYcnhBXaTmvPR\nxlYEzX9qydaeKMNusSZJQw4ZkHIwaLwDsQsYEvo75fe+FvxLYCbGsYPRymYyxMSz\nPyPZG1z9+2z9egkkEk6o2HADUDoehMZFgEdXo4TaNGoZ/cRvcxreiPsFAoGABonY\nLE6Y0/PwOOpRmBt0wQmx0FYhqXc15tWrwlpMX14QoxHkMNpiHONa4X3dZ78hyCoy\ntfviJur9cRzCfXjrwRdFYVfnV2lnSyScoUnwX5lSB3Ul9feHx9wCNjOUPVAqGNv1\nE+R8bZwdUiUWeDbg4eX9cOKnZIQz9fH0PxYX5o8CgYEApmDwJssXtgeq3eAIgE1A\nk0N+TIpcDew3VfkikIr8ScFHzfSO6Rj2xit71NUdKHvuRiAvGg1G3ZvH8YORbz+M\nWrOpxR3MCqXo1tE5nOkIEggSzaVCq/VzaV7H7+NiDVMKBCfmp3y22B0OCBTrW1st\ny4KmULoOJbmVH3LwTgeYoN8=\n-----END PRIVATE KEY-----\n"
+  const privateKey ="-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDDCp00/d5pYWTE\n/ugu69Ls7rPd02f9NDj3HBReokWA+vz5Z22mGfhcsWsWU6nvSuyNy9i3beHqvDho\nitrHK2oqaEeOLvr9WY6ROCG7ph6fwcaQrKIPs5lM26rnUCRF6oZk9B2o+owGBoAt\nqJy6tcxCznpY9LwSCLovpxK70LDa3c6HnQuMiL5TjYqJtayES9Zt6VUm/HhJ5E9g\nO5nNJHjwLVl1h4Yn+ojTfnVfD3oM8cPBIc6c/6i9gWjwQgCH7PvWakzb4bEzRRdz\n5hITZnKQOU81bq0FkV0g8ot97F4PcIV72eKA9dWMgEsb/Sjf1ouM2hqLUcm8rnde\n27+GIFlzAgMBAAECggEARfKXCauoKZPfr1SZ0UYK2aULxZitOR4S9fBQj9XTZlvd\nANbqeIDk1N1eAd5UWfi9WGcMXFBgjq4c7sUpi/dSdk36p4/KvLRzEDqYwnLjlbjJ\nbRY0crwe1PUM2DMiJx7iPu9becANGpYXPwiy2LUdQbJKJ3/xuOf/WdqpuciwvHTh\nJGVsnl2gdXgBbR7soLVMtZ8ELY6HgrSGcUP65A8JC9KgjSrHXZ0R5YGOiAmw90aj\nWulkZtgpidbfMgKh09pPCvBL7Ax6PQB8K8a3pm7JhBq6DGnjqsNUGDN5FxfkHVCy\nKPfS1bmMq959ZpQRnpra8sVCjWI2ZeziVVft6Bx1TQKBgQD+GcNukYRdMYMrOa06\now0Krd9hkWSFPBu4H4H+0VMUin7VZGpLxZQ5mTYbRRMU7IKCf7GhTAvEcGHhzJb2\nbH0JiCXo8NkumzmkWGa2WeHWxpQhgTGiblMOwcqmnmUeuGybVCdZDmQCYIFQVNkM\n7M+YrnUtXYfBT+8bgJkIPYUTvwKBgQDEf9ZjlmOEeJPq5cnlFULEVWSUncKiaZNR\nBKEYwjBvQKs3jCFVgEyC/bUR61J62H9NhmBaXOlSiJ8kwNM8967OKzlR8q+bRoE7\n2XdLKASZ1tUxuL+XiXhy/B07qOvnTZiFFiJd/k9K0kFPFMjzsMxz4g6gLSTILUba\nOq0jj3zXTQKBgH7/e2jgu+okG+3XttfOtG749eN62mWo5CXDQaKNFlv22Gto86OJ\nTYr4I02/2Uik6Jm2np4CNwNoM9O6AF2LXXcNH/1rmvCrTkTwle1fwPsqZtDUFG2d\nfE+s1c8u7VVMUaPUjJH7GksB1r/CmHTYSu2BjDkvPPGGNPhm7pVqwf9bAoGABThU\nLK8ZE7LUUyApneFTtb2C/4O1YPUnCbbyxKKcAMiaA87AL/JJlg1BWymCNms77oZM\nVvoy5JNmjuZkdjEqPqXdTvUAf0J/OmTLi36TqLaRUVHUHSV0wrE54ZTaN3nTPG3b\nGd4gox80xvIJaJfgxo9RziWE3aB+SlvWr6QnL90CgYBf/tFSLJOjy++datMEt+Nf\nyoTjyKpFWTXOuSCsP+Uqfpcs5tt9rEp/MbKPD+tVIO2kPPZJrmfrWbIq5sBzoKmb\nVj1CHiVpGks+MvX12zx8tXkww5N6M47gCwrGpgvfKMkl54vPJrT3M4lB/nCCK0pn\nJQozchEjn/v3rJrfMLmP/Q==\n-----END PRIVATE KEY-----\n"
   try {
 
     if (privateKey && privateKey.includes("\\n")) {
@@ -127,7 +127,7 @@ const sendNotification = async (token, title, body, channel) => {
         notification: {
           channelId: channel ,
           clickAction: "",
-          imageUrl:"https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fweb%2F1757750048833-e5243743-d7ec-40f6-950d-849cd31d525f-dikshant-logo.png&w=384&q=75"
+          imageUrl:"https://i.ibb.co/TxJRvf12/favicon.png"
         },
       },
     };
@@ -151,7 +151,93 @@ const sendNotification = async (token, title, body, channel) => {
   }
 };
 
+const sendMultipleNotifications = async (tokens, title, body, channel = "default") => {
+  initializeFirebase();
+
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    logger.error("Tokens must be a non-empty array");
+    throw new NotificationError("Invalid tokens array", "INVALID_ARGUMENTS");
+  }
+
+  // Filter valid tokens
+  const validTokens = tokens.filter(t => typeof t === "string" && t.trim() !== "");
+  if (validTokens.length === 0) {
+    throw new NotificationError("No valid tokens provided", "INVALID_TOKEN");
+  }
+
+  const BATCH_SIZE = 100; // Old SDK: send in small batches to avoid overload
+  let successCount = 0;
+  let failureCount = 0;
+  const failedTokens = [];
+
+  // Process tokens in batches
+  for (let i = 0; i < validTokens.length; i += BATCH_SIZE) {
+    const batch = validTokens.slice(i, i + BATCH_SIZE);
+
+    const batchPromises = batch.map(async (token) => {
+      try {
+        await admin.messaging().send({
+          token,
+          notification: { title, body },
+          android: {
+            priority: "high",
+            notification: {
+              channelId: channel,
+              imageUrl:
+                "https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fweb%2F1757750048833-e5243743-d7ec-40f6-950d-849cd31d525f-dikshant-logo.png&w=384&q=75",
+            },
+          },
+        });
+        successCount++;
+      } catch (error) {
+        failureCount++;
+        failedTokens.push({ token, error: error.message || "Unknown error" });
+        logger.warn(`❌ Failed to send notification to token: ${token} | ${error.message}`);
+      }
+    });
+
+    // Wait for batch to finish
+    await Promise.all(batchPromises);
+  }
+
+  logger.info(`📢 Notifications sent: ${successCount} success, ${failureCount} failed`);
+  return { success: true, successCount, failureCount, failedTokens };
+};
+
+
+const sendToTopic = async (topic, title, body, channel = "default") => {
+  initializeFirebase();
+
+  if (!topic || typeof topic !== "string" || topic.trim() === "") {
+    throw new NotificationError("Invalid topic name", "INVALID_TOPIC");
+  }
+
+  const message = {
+    topic: topic.trim(),
+    notification: { title, body },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: channel,
+        imageUrl: "https://www.dikshantias.com/_next/image?url=https%3A%2F%2Fdikshantiasnew-web.s3.ap-south-1.amazonaws.com%2Fweb%2F1757750048833-e5243743-d7ec-40f6-950d-849cd31d525f-dikshant-logo.png&w=384&q=75",
+      },
+    },
+    data: { channel }, // Optional data payload
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    logger.info(`Topic notification sent to '${topic}' | Message ID: ${response}`);
+    return { success: true, messageId: response };
+  } catch (error) {
+    logger.error(`Topic send failed: ${error.message}`);
+    throw new NotificationError(error.message);
+  }
+};
+
 module.exports = {
+  sendToTopic,
+  sendMultipleNotifications,
   initializeFirebase,
   sendNotification,
 };

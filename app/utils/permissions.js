@@ -20,20 +20,20 @@ export const getFCMToken = async () => {
   try {
     // Check if device is registered (v22 compatible)
     const isRegistered = await messaging().isDeviceRegisteredForRemoteMessages;
-    
+
     if (!isRegistered) {
       await messaging().registerDeviceForRemoteMessages();
     }
 
     // Get FCM token (v22 compatible)
     const token = await messaging().getToken();
-    
+
     if (token) {
       console.log('📱 FCM Token:', token);
       await AsyncStorage.setItem('fcm_token', token);
       return token;
     }
-    
+
     return null;
   } catch (error) {
     console.error('❌ Error getting FCM token:', error);
@@ -47,7 +47,7 @@ export const refreshFCMToken = async (onTokenRefresh) => {
     const unsubscribe = messaging().onTokenRefresh(async (newToken) => {
       console.log('🔄 FCM Token refreshed:', newToken);
       await AsyncStorage.setItem('fcm_token', newToken);
-      
+
       if (onTokenRefresh && typeof onTokenRefresh === 'function') {
         await onTokenRefresh(newToken);
       }
@@ -78,14 +78,14 @@ export const setupNotifications = async () => {
   try {
     // Request notification permission
     const hasPermission = await requestNotificationPermission();
-    
+
     if (!hasPermission) {
       return { success: false, message: 'Notification permission denied' };
     }
 
     // Get FCM token
     const token = await getFCMToken();
-    
+
     if (!token) {
       return { success: false, message: 'Failed to get FCM token' };
     }
@@ -95,17 +95,17 @@ export const setupNotifications = async () => {
       await setupNotificationChannels();
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       token,
-      message: 'Notifications setup successfully' 
+      message: 'Notifications setup successfully'
     };
   } catch (error) {
     console.error('❌ Error setting up notifications:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       message: 'Failed to setup notifications',
-      error: error.message 
+      error: error.message
     };
   }
 };
@@ -124,7 +124,7 @@ const requestNotificationPermission = async () => {
         alert: true,
         badge: true,
       });
-      
+
       return (
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL
@@ -145,7 +145,7 @@ const requestNotificationPermission = async () => {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       }
-      
+
       // Android < 13 - use Expo Notifications
       const { status: existingStatus } = await ExpoNotifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -175,7 +175,7 @@ const setupNotificationChannels = async () => {
       importance: ExpoNotifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#6366f1',
-      sound: 'default',
+      sound: 'n_bell',
     });
 
     await ExpoNotifications.setNotificationChannelAsync('attendance', {
@@ -183,7 +183,7 @@ const setupNotificationChannels = async () => {
       importance: ExpoNotifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#ef4444',
-      sound: 'default',
+      sound: 'n_bell',
     });
 
     await ExpoNotifications.setNotificationChannelAsync('assignments', {
@@ -191,7 +191,7 @@ const setupNotificationChannels = async () => {
       importance: ExpoNotifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#f59e0b',
-      sound: 'default',
+      sound: 'v_bell',
     });
 
     await ExpoNotifications.setNotificationChannelAsync('announcements', {
@@ -199,7 +199,7 @@ const setupNotificationChannels = async () => {
       importance: ExpoNotifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#10b981',
-      sound: 'default',
+      sound: 'n_bell',
     });
 
     await ExpoNotifications.setNotificationChannelAsync('courses', {
@@ -207,15 +207,15 @@ const setupNotificationChannels = async () => {
       importance: ExpoNotifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#8b5cf6',
-      sound: 'default',
+      sound: 'v_bell',
     });
 
     await ExpoNotifications.setNotificationChannelAsync('tests', {
-      name: 'Test Reminders',
+      name: 'Test & Live Class Alerts',
       importance: ExpoNotifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: [0, 400, 200, 400],
       lightColor: '#06b6d4',
-      sound: 'default',
+      sound: 'v_bell',
     });
 
     console.log('✅ Notification channels created');
@@ -263,7 +263,7 @@ export const setupBackgroundNotifications = () => {
   // This should be called OUTSIDE of any component (e.g., index.js or App.js top level)
   messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     console.log('📩 Background notification:', remoteMessage);
-    
+
     // Handle background notification
     try {
       await AsyncStorage.setItem(
@@ -290,7 +290,7 @@ export const setupNotificationOpenHandler = (onNotificationOpen) => {
     // Handle notification opened when app is in background (v22 compatible)
     messaging().onNotificationOpenedApp((remoteMessage) => {
       console.log('📱 Notification opened (background):', remoteMessage);
-      
+
       if (onNotificationOpen && typeof onNotificationOpen === 'function') {
         onNotificationOpen(remoteMessage);
       }
@@ -302,7 +302,7 @@ export const setupNotificationOpenHandler = (onNotificationOpen) => {
       .then((remoteMessage) => {
         if (remoteMessage) {
           console.log('📱 Notification opened (quit state):', remoteMessage);
-          
+
           if (onNotificationOpen && typeof onNotificationOpen === 'function') {
             onNotificationOpen(remoteMessage);
           }
@@ -312,7 +312,7 @@ export const setupNotificationOpenHandler = (onNotificationOpen) => {
     // Also handle Expo notification interactions
     const subscription = ExpoNotifications.addNotificationResponseReceivedListener((response) => {
       console.log('📱 Expo notification tapped:', response);
-      
+
       if (onNotificationOpen && typeof onNotificationOpen === 'function') {
         // Convert Expo notification format to FCM-like format
         const convertedMessage = {
@@ -474,7 +474,7 @@ export const getDeviceInfo = async () => {
     const deviceId = Device.modelName || Device.deviceName || 'Unknown';
     const platform = Platform.OS;
     const version = Platform.Version;
-    
+
     return {
       device_id: deviceId,
       platform: platform,

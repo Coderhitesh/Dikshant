@@ -11,7 +11,7 @@ import {
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
-import { ImageDown, Speaker } from "lucide-react";
+import { Bell, ImageDown, Speaker } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -45,6 +45,11 @@ const navItems: NavItem[] = [
     icon: <Speaker />,
     name: "Announcements",
     path: "/announcements",
+  },
+  {
+    icon: <Bell />,
+    name: "Send Notifications",
+    path: "/send-notification",
   },
   {
     icon: <ImageDown />,

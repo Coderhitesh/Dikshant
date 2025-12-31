@@ -5,14 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import { LinearGradient } from 'expo-linear-gradient';
-
 const { width } = Dimensions.get("window");
 
-const CARD_WIDTH = (width - 32 - 24) / 3;
+const CARD_WIDTH = (width - 48) / 3;
 
 const categories = [
   {
@@ -22,7 +22,7 @@ const categories = [
     icon: "video",
     screen: "Courses",
     filter: "online",
-    gradient: ["#667eea", "#764ba2"],
+    gradient: ["#8b5cf6", "#6d28d9"],
     students: "50K+",
     comingSoon: false,
   },
@@ -30,10 +30,10 @@ const categories = [
     id: 2,
     title: "Recorded Courses",
     subtitle: "Learn at your pace",
-    icon: "play-circle",
+    icon: "play",
     screen: "Courses",
     filter: "recorded",
-    gradient: ["#f093fb", "#f5576c"],
+    gradient: ["#ec4899", "#be185d"],
     students: "1M+",
     comingSoon: false,
   },
@@ -44,7 +44,7 @@ const categories = [
     icon: "map-pin",
     screen: "Courses",
     filter: "offline",
-    gradient: ["#4facfe", "#00f2fe"],
+    gradient: ["#06b6d4", "#0891b2"],
     students: "25K+",
     comingSoon: false,
   },
@@ -54,7 +54,7 @@ const categories = [
     subtitle: "Notes & PDFs",
     icon: "book-open",
     screen: "ComingSoon",
-    gradient: ["#ff9a9e", "#fad0c4"],
+    gradient: ["#f59e0b", "#d97706"],
     students: "Coming Soon",
     comingSoon: true,
   },
@@ -64,7 +64,7 @@ const categories = [
     subtitle: "Practice & improve",
     icon: "edit-3",
     screen: "ComingSoon",
-    gradient: ["#fa709a", "#fee140"],
+    gradient: ["#f97316", "#ea580c"],
     students: "Coming Soon",
     comingSoon: true,
   },
@@ -74,15 +74,14 @@ const categories = [
     subtitle: "Get instant help",
     icon: "help-circle",
     screen: "ComingSoon",
-    gradient: ["#fbc2eb", "#a6c1ee"],
+    gradient: ["#a855f7", "#7c3aed"],
     students: "Coming Soon",
     comingSoon: true,
   },
 ];
 
-const QuickActionItem = ({ item }) => {
+const CategoryCard = ({ item }) => {
   const navigation = useNavigation();
-
   const handlePress = () => {
     if (item.comingSoon) return;
 
@@ -92,55 +91,55 @@ const QuickActionItem = ({ item }) => {
       navigation.navigate(item.screen);
     }
   };
-
   return (
     <TouchableOpacity
-      style={[styles.quickActionItem, { width: CARD_WIDTH }]}
+      style={[styles.categoryCard, { width: CARD_WIDTH }]}
       onPress={handlePress}
-      activeOpacity={0.7}
+      activeOpacity={0.8}
       disabled={item.comingSoon}
     >
       <LinearGradient
         colors={item.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.gradientBackground}
+        style={styles.gradientContainer}
       >
-        <View style={styles.quickActionIcon}>
-          <Feather name={item.icon} size={16} color="#ffffff" />
-        </View>
-        <Text style={styles.quickActionText} numberOfLines={1}>
-          {item.title}
-        </Text>
         {item.comingSoon && (
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonText}>Soon</Text>
+          <View style={styles.soonBadge}>
+            <Text style={styles.soonText}>SOON</Text>
           </View>
         )}
+
+        <View style={styles.iconContainer}>
+          <Feather name={item.icon} size={18} color="#ffffff" />
+        </View>
+
+        <Text style={styles.categoryTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
       </LinearGradient>
     </TouchableOpacity>
   );
 };
 
 export default function Categories() {
-  // Split into two rows
   const firstRow = categories.slice(0, 3);
   const secondRow = categories.slice(3, 6);
 
   return (
     <View style={styles.container}>
-      <View style={styles.quickActionsSection}>
-        {/* First Row - 3 items */}
+      <View style={styles.categoriesSection}>
+        {/* First Row */}
         <View style={styles.row}>
           {firstRow.map((item) => (
-            <QuickActionItem key={item.id} item={item} />
+            <CategoryCard key={item.id} item={item} />
           ))}
         </View>
 
-        {/* Second Row - 3 items */}
-        <View style={[styles.row, styles.secondRow]}>
+        {/* Second Row */}
+        <View style={styles.row}>
           {secondRow.map((item) => (
-            <QuickActionItem key={item.id} item={item} />
+            <CategoryCard key={item.id} item={item} />
           ))}
         </View>
       </View>
@@ -153,61 +152,66 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
-  quickActionsSection: {
-    backgroundColor: "#ffffff",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+  categoriesSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 16,
   },
   row: {
     flexDirection: "row",
-    paddingHorizontal: 16,
     justifyContent: "space-between",
+    gap: 8,
   },
-  secondRow: {
-    marginTop: 12,
+  categoryCard: {
+    height: 90,
+    borderRadius: 16,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  quickActionItem: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  gradientBackground: {
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    position: "relative",
-  },
-  quickActionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  gradientContainer: {
+    flex: 1,
+    padding: 7,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 6,
+    position: "relative",
   },
-  quickActionText: {
+  soonBadge: {
+    position: "absolute",
+    top: 3,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  soonText: {
+    fontSize: 6,
+    fontWeight: "700",
+    color: "#374151",
+    letterSpacing: 0.5,
+  },
+  iconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  categoryTitle: {
     fontSize: 11,
     fontWeight: "600",
     color: "#ffffff",
     textAlign: "center",
-  },
-  comingSoonBadge: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  comingSoonText: {
-    color: "#ffffff",
-    fontSize: 8,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    lineHeight: 16,
   },
 });

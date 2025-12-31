@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-
+import JoditEditor from "jodit-react";
 const API_URL = "https://www.dikapi.olyox.in/api/announcements";
 
 interface Announcement {
@@ -20,6 +20,7 @@ interface Announcement {
   title: string;
   message: string;
   publishDate: string;
+  description: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,8 +39,23 @@ const Announcements = () => {
   const [deleteModal, setDeleteModal] = useState<Announcement | null>(null);
 
   // Form
-  const [form, setForm] = useState({ title: "", message: "", publishDate: "" });
+  const [form, setForm] = useState({
+    title: "",
+    message: "",
+    publishDate: "",
+    description: "",
+  });
   const [submitting, setSubmitting] = useState(false);
+
+  const editor = useRef(null);
+
+  const config = useMemo(
+    () => ({
+      readonly: false, // all options from https://xdsoft.net/jodit/docs/,
+      placeholder: "Start typings...",
+    }),
+    []
+  );
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -88,7 +104,7 @@ const Announcements = () => {
   const openAdd = () => {
     setEditMode(false);
     setEditingId(null);
-    setForm({ title: "", message: "", publishDate: "" });
+    setForm({ title: "", message: "", publishDate: "", description: "" });
     setFormModal(true);
   };
 
@@ -98,6 +114,7 @@ const Announcements = () => {
     setForm({
       title: ann.title,
       message: ann.message,
+      description: ann.description,
       publishDate: ann.publishDate.split("T")[0],
     });
     setFormModal(true);
@@ -118,7 +135,7 @@ const Announcements = () => {
         toast.success("Announcement created!");
       }
       setFormModal(false);
-      setForm({ title: "", message: "", publishDate: "" });
+      setForm({ title: "", message: "", publishDate: "", description: "" });
       fetchAnnouncements();
     } catch (error: unknown) {
       let message = `Failed to ${editMode ? "update" : "create"}`;
@@ -342,6 +359,20 @@ const Announcements = () => {
                   className="w-full px-3 py-2 text-sm rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 resize-none"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Message
+                </label>
+                <JoditEditor
+                  ref={editor}
+                  value={form.description}
+                  config={config}
+                  tabIndex={1}
+                  onBlur={(newContent) => {
+                    setForm({ ...form, description: newContent });
+                  }}
+                />{" "}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
